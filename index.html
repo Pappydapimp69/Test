@@ -11,6 +11,7 @@
 </head>
 <body>
   <canvas id="scene"></canvas>
+  <div id="vignette"></div>
 
   <!-- HUD overlay: pure presentation, reads world state each frame -->
   <div id="hud">
@@ -41,11 +42,15 @@
     </div>
   </div>
 
-  <!-- Top-right utility buttons (both platforms) -->
-  <div id="util">
-    <button id="b-save" class="ubtn">Save</button>
-    <button id="b-load" class="ubtn">Load</button>
-    <button id="b-help" class="ubtn">?</button>
+  <!-- Top-right menu -->
+  <div id="util"><button id="b-menu" class="ubtn">☰</button></div>
+  <div id="menu">
+    <button id="m-resume" class="mbtn primary">Resume</button>
+    <button id="b-save" class="mbtn">Save game</button>
+    <button id="b-load" class="mbtn">Load game</button>
+    <button id="b-help" class="mbtn">How to play</button>
+    <button id="m-mute" class="mbtn">Sound: On</button>
+    <button id="m-restart" class="mbtn">Restart</button>
   </div>
 
   <div id="help" class="show">
@@ -55,6 +60,10 @@
       Take quests from Elder Mira (gold), thin the husks in the wilderness to the
       east, recover the seal, then descend into the Sunken Vault and end the
       Hollow King.
+    </div>
+    <div id="arch" class="arch-row">
+      <button class="arch sel" data-arch="warden"><b>Ash Warden</b><small>tanky · resilient</small></button>
+      <button class="arch" data-arch="seeker"><b>Relic Seeker</b><small>fragile · high damage</small></button>
     </div>
     <div class="keys" data-desktop>
       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · drag mouse to look ·

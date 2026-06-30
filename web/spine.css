@@ -11,6 +11,7 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; touch-action: none; overscroll-behavior: none; }
 body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); -webkit-user-select: none; user-select: none; }
 #scene { display: block; width: 100vw; height: 100vh; touch-action: none; }
+#vignette { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0; box-shadow: inset 0 0 120px 40px rgba(210,104,95,.8); transition: opacity .1s; }
 
 #hud { position: fixed; inset: 0; pointer-events: none; padding: max(12px, env(safe-area-inset-top)) 14px; z-index: 2; }
 #topbar { display: flex; gap: 10px; justify-content: center; font-variant-numeric: tabular-nums; }
@@ -30,7 +31,7 @@ body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-se
 #quest .obj-done { color: var(--good); } #quest .obj-todo { color: var(--muted); }
 #quest:empty { display: none; }
 
-#target { position: fixed; left: 50%; top: 46px; transform: translateX(-50%); width: 220px; max-width: 60vw; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; backdrop-filter: blur(4px); display: none; }
+#target { position: fixed; left: max(12px, env(safe-area-inset-left)); top: 124px; width: 210px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; backdrop-filter: blur(4px); display: none; }
 #target.show { display: block; }
 #target .tn { font-size: .78rem; display: flex; justify-content: space-between; margin-bottom: 3px; }
 #target .tn .boss { color: var(--bad); }
@@ -61,9 +62,14 @@ body.touch #touch { display: block; }
 .tbtn.small { width: 58px; height: 58px; font-size: 1.3rem; }
 .tbtn:active { background: rgba(216,183,101,.25); }
 
-#util { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); display: flex; gap: 6px; z-index: 4; }
-.ubtn { background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: .78rem; backdrop-filter: blur(4px); }
+#util { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); z-index: 4; }
+.ubtn { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; font-size: 1rem; backdrop-filter: blur(4px); }
 .ubtn:active { color: var(--accent); }
+#menu { position: fixed; inset: 0; z-index: 6; display: none; flex-direction: column; gap: 10px; align-items: center; justify-content: center; background: rgba(4,5,10,.82); backdrop-filter: blur(3px); }
+#menu.show { display: flex; }
+.mbtn { width: min(280px, 80vw); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 1rem; }
+.mbtn.primary { border-color: var(--accent); color: var(--accent); }
+.mbtn:active { background: rgba(216,183,101,.2); }
 
 /* ---- help / start overlay ---- */
 #help { position: fixed; inset: 0; z-index: 6; display: none; place-items: center; background: rgba(4,5,10,.82); padding: 18px; backdrop-filter: blur(3px); }
@@ -78,6 +84,10 @@ body.touch #touch { display: block; }
 body.touch #help [data-desktop] { display: none; }
 body:not(.touch) #help [data-touch] { display: none; }
 #help-x { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--muted); font-size: 1.3rem; }
+.arch-row { display: flex; gap: 10px; justify-content: center; margin: 14px 0 4px; }
+.arch { flex: 1; max-width: 200px; display: flex; flex-direction: column; gap: 2px; background: var(--panel); color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; }
+.arch b { color: var(--ink); } .arch small { color: var(--muted); font-size: .74rem; }
+.arch.sel { border-color: var(--accent); } .arch.sel b { color: var(--accent); }
 #help-go { display: block; margin: 16px auto 0; background: var(--accent); color: #1a1407; border: none; border-radius: 10px; padding: 12px 26px; font-size: 1rem; font-weight: 600; }
 kbd { display: inline-block; padding: 1px 6px; margin: 0 1px; border-radius: 4px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); font-size: .76rem; }
 
