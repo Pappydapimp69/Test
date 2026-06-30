@@ -1,0 +1,28 @@
+{
+  "enemies": [
+    {
+      "id": "husk_wanderer", "name": "Husk Wanderer", "maxHp": 40, "power": 9, "defense": 2,
+      "xp": 20, "aggressive": true, "isBoss": false, "nightAggroBonus": 3,
+      "loot": [
+        { "itemId": "mat_husk_shard", "chance": 1.0, "qty": 1 },
+        { "itemId": "con_minor_salve", "chance": 0.3, "qty": 1 }
+      ]
+    },
+    {
+      "id": "ruin_stalker", "name": "Ruin Stalker", "maxHp": 60, "power": 12, "defense": 4,
+      "xp": 35, "aggressive": true, "isBoss": false, "nightAggroBonus": 4,
+      "loot": [
+        { "itemId": "mat_husk_shard", "chance": 0.5, "qty": 1 },
+        { "itemId": "con_greater_salve", "chance": 0.25, "qty": 1 }
+      ]
+    },
+    {
+      "id": "boss_hollow_king", "name": "The Hollow King", "maxHp": 260, "power": 22, "defense": 7,
+      "xp": 300, "aggressive": true, "isBoss": true, "nightAggroBonus": 0,
+      "loot": [
+        { "itemId": "wpn_ember_blade", "chance": 1.0, "qty": 1 },
+        { "itemId": "arm_wardplate", "chance": 1.0, "qty": 1 }
+      ]
+    }
+  ]
+}

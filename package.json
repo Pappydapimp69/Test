@@ -1,0 +1,12 @@
+{
+  "name": "echoes-of-the-shattered-realm",
+  "version": "0.1.0",
+  "description": "A small but complete 3D RPG vertical slice. Headless, data-driven, authoritative simulation core with a Three.js presentation layer.",
+  "type": "module",
+  "scripts": {
+    "demo": "node src/sim/demo.mjs",
+    "test": "node src/sim/demo.mjs",
+    "dev": "echo 'Render layer (Three.js + Vite) lands in Milestone 1 — see docs/06-mvp-roadmap.md' && exit 1"
+  },
+  "license": "MIT"
+}
