@@ -184,6 +184,15 @@ export function reduce(world, cmd, content) {
       return done();
     }
 
+    case "TRAVEL": {
+      if (!world.player) return fail("no character");
+      world.player.location = cmd.to;
+      events.push(logEvent(world, { type: "TRAVELED", to: cmd.to }));
+      if (cmd.minutes) reduce(world, { type: "ADVANCE_TIME", minutes: cmd.minutes }, content)
+        .events.forEach((e) => events.push(e));
+      return done();
+    }
+
     case "ADVANCE_TIME": {
       const mins = cmd.minutes || 0;
       const t = world.time;

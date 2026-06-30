@@ -9,6 +9,17 @@ experiment). The thinking that produced it is distributed across the sibling
 `ideas`, `memory`, `tension`, `creativity`, and `brain` repos — see
 [`brain`](https://github.com/Pappydapimp69/brain) for the orchestration index.
 
+## ▶ Play it live
+
+**https://pappydapimp69.github.io/Test/** — a playable browser slice that runs
+the *real* simulation core through a text UI: create a character, take quests,
+fight through the wilderness and dungeon, loot, and end the Hollow King — with
+save/load and a live day/night clock. (No 3D yet; that's Milestone 1. Every button
+issues a command to the same `reduce()` reducer the headless test drives.)
+
+> Deployed by `.github/workflows/pages.yml`, which first runs the headless
+> assertions and only publishes if they pass.
+
 ## Status — Milestone 0 complete (Design + Simulation Core)
 
 The **authoritative simulation** is built and proven. There is no 3D renderer

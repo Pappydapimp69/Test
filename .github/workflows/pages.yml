@@ -1,0 +1,58 @@
+name: Deploy playable slice to GitHub Pages
+
+on:
+  push:
+    branches: ["claude/shattered-realm-architecture-lv3lb4", "main"]
+    paths:
+      - "index.html"
+      - "web/**"
+      - "src/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# Allow the GITHUB_TOKEN to deploy to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One in-progress deployment at a time; don't cancel a running one.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Sanity gate: the headless sim must pass before we publish anything.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Headless vertical-slice assertions
+        run: node src/sim/demo.mjs
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage the static site
+        # The whole game is static (HTML + ESM JS + JSON), so we publish the
+        # files the page needs as-is. No bundler required for the M0 slice.
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r web _site/web
+          cp -r src _site/src
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,23 +1,18 @@
-// Content loader — turns the data/*.json files into fast lookup maps.
+// Content loader (Node) — reads data/*.json from disk and indexes it.
 //
 // Code is systems; content is data. The sim never hard-codes an item, enemy,
-// quest, or line of dialogue — it only knows *shapes*. Adding content is a JSON
-// edit, never a code change. This is the seam the content pipeline plugs into.
+// quest, or line of dialogue — it only knows *shapes*. The actual indexing is
+// in contentIndex.mjs (IO-free) so the browser app can share it via fetch.
 
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { indexContent } from "./contentIndex.mjs";
 
 const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
 
 async function loadJson(name) {
   return JSON.parse(await readFile(join(DATA_DIR, name), "utf8"));
-}
-
-function byId(arr) {
-  const m = new Map();
-  for (const x of arr) m.set(x.id, x);
-  return m;
 }
 
 export async function loadContent() {
@@ -28,11 +23,5 @@ export async function loadContent() {
     loadJson("npcs.json"),
     loadJson("archetypes.json"),
   ]);
-  return {
-    items: byId(items.items),
-    enemies: byId(enemies.enemies),
-    quests: byId(quests.quests),
-    npcs: byId(npcs.npcs),
-    archetypes: byId(archetypes.archetypes),
-  };
+  return indexContent({ items, enemies, quests, npcs, archetypes });
 }
