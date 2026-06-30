@@ -45,6 +45,11 @@ body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-se
 #toast p.good { color: var(--good); } #toast p.bad { color: var(--bad); } #toast p.sys { color: var(--accent); }
 @keyframes fade { 0%{opacity:0;transform:translateY(6px)} 8%{opacity:1;transform:none} 80%{opacity:1} 100%{opacity:0} }
 
+#compass { position: fixed; bottom: 41%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; }
+#compass.hide { display: none; }
+#compass-arrow { color: var(--accent); font-size: 1rem; line-height: 1; text-shadow: 0 1px 3px #000; display: inline-block; }
+#compass-label { font-size: .66rem; color: var(--muted); background: rgba(8,10,16,.5); padding: 0 6px; border-radius: 6px; }
+
 /* floating combat numbers */
 #dmg { position: fixed; inset: 0; }
 #dmg span { position: absolute; font-weight: 700; font-size: 1.05rem; transform: translate(-50%,-50%); animation: rise 0.9s ease-out forwards; text-shadow: 0 1px 3px #000; }

@@ -42,23 +42,37 @@ const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dyi
 const byId = new Map();
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
+let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
+let gpx = 0, gpy = 0, padIndex = null; const prevBtn = []; // gamepad
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
 const facing = new THREE.Vector3(1, 0, 0);
 const el = (id) => document.getElementById(id);
 
 // ---------------------------------------------------------------- audio (WebAudio, gesture-init)
-let actx = null, muted = false;
-function audioInit() { if (actx || muted) return; try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { actx = null; } }
+// Fully synthesized — no audio assets. Tones via oscillators; impacts/whooshes/
+// wind via filtered white-noise bursts so hits read as percussive, not beepy.
+let actx = null, muted = false, noiseBuf = null, windGain = null;
+function audioInit() { if (actx || muted) return; try { actx = new (window.AudioContext || window.webkitAudioContext)(); makeNoise(); startWind(); } catch { actx = null; } }
+function makeNoise() { const n = actx.sampleRate; noiseBuf = actx.createBuffer(1, n, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
 function beep(freq, dur = 0.08, type = "square", gain = 0.045) { if (!actx || muted) return; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
+function noise(dur, freq, q, gain, type = "bandpass") { if (!actx || muted || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = actx.createGain(); s.connect(f); f.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t); s.stop(t + dur); }
+function startWind() { if (!actx || windGain || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420; windGain = actx.createGain(); windGain.gain.value = 0.012; s.connect(f); f.connect(windGain); windGain.connect(actx.destination); s.start(); }
 function sfx(kind) {
-  if (kind === "hit") beep(300, 0.05, "square", 0.035);
-  else if (kind === "hurt") beep(130, 0.12, "sawtooth", 0.05);
-  else if (kind === "die") beep(90, 0.2, "sawtooth", 0.05);
-  else if (kind === "loot") beep(660, 0.07, "triangle", 0.04);
-  else if (kind === "level") { beep(523, 0.1); setTimeout(() => beep(784, 0.12), 90); }
-  else if (kind === "ui") beep(440, 0.035, "sine", 0.03);
-  else if (kind === "win") { beep(523, 0.15); setTimeout(() => beep(659, 0.15), 130); setTimeout(() => beep(784, 0.22), 280); }
+  if (!actx || muted) return;
+  switch (kind) {
+    case "hit": noise(0.09, 1300, 1.2, 0.06); beep(300, 0.045, "square", 0.02); break;     // metallic impact
+    case "hurt": noise(0.17, 240, 0.7, 0.085, "lowpass"); break;                            // dull thud
+    case "swing": noise(0.12, 1100, 0.5, 0.03, "highpass"); break;                          // blade whoosh
+    case "die": beep(120, 0.22, "sawtooth", 0.045); noise(0.3, 200, 0.5, 0.05, "lowpass"); break;
+    case "loot": beep(660, 0.06, "triangle", 0.04); setTimeout(() => beep(880, 0.07, "triangle", 0.04), 60); break;
+    case "level": beep(523, 0.1); setTimeout(() => beep(659, 0.1), 90); setTimeout(() => beep(784, 0.15), 190); break;
+    case "ui": beep(440, 0.03, "sine", 0.028); break;
+    case "step": noise(0.05, 170, 0.9, 0.018, "lowpass"); break;                            // footfall
+    case "dodge": noise(0.2, 700, 0.5, 0.035); break;                                       // dash
+    case "roar": beep(68, 0.5, "sawtooth", 0.06); noise(0.5, 150, 0.4, 0.05, "lowpass"); break;
+    case "win": [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, "square", 0.045), i * 150)); break;
+  }
 }
 
 // ---------------------------------------------------------------- toasts / fx
@@ -167,7 +181,8 @@ function applyTimeOfDay() {
 // ---------------------------------------------------------------- combat
 function dist2(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; }
 function nearestEnemy(range) { let best = null, bd = range * range; const p = world.player.pos; for (const e of enemies) { if (!e.alive) continue; const d = dist2(p, e.pos); if (d <= bd) { bd = d; best = e; } } return best; }
-function playerAttack() { if (pAtkCd > 0 || helpOpen || !world.player) return; pAtkCd = feel.playerAttackCooldown; lungeT = 0.18; const t = nearestEnemy(feel.playerReach); if (t) dispatch({ type: "ATTACK", targetId: t.id, retaliate: false }); }
+function playerAttack() { if (pAtkCd > 0 || helpOpen || !world.player) return; pAtkCd = feel.playerAttackCooldown; lungeT = 0.18; sfx("swing"); const t = nearestEnemy(feel.playerReach); if (t) dispatch({ type: "ATTACK", targetId: t.id, retaliate: false }); }
+function dodge() { if (dodgeCd > 0 || helpOpen || !world.player || won) return; dodgeCd = 0.85; dodgeT = 0.24; sfx("dodge"); } // brief i-frames (skip enemy strikes while active)
 function useSalve() { const id = countItem(world, "con_greater_salve") > 0 ? "con_greater_salve" : countItem(world, "con_minor_salve") > 0 ? "con_minor_salve" : null; if (id) dispatch({ type: "USE_ITEM", itemId: id }); else toast("No salves left.", ""); }
 function rest() { if (nearestEnemy(feel.aggroRadius)) { toast("Too dangerous to rest here.", "bad"); return; } dispatch({ type: "ADVANCE_TIME", minutes: 480, rest: true }); }
 
@@ -193,20 +208,27 @@ function victory() { won = true; const h = el("help"); h.classList.add("show"); 
 function movement(dt) {
   let ix = 0, iz = 0;
   if (keys.has("w")) iz += 1; if (keys.has("s")) iz -= 1; if (keys.has("a")) ix -= 1; if (keys.has("d")) ix += 1;
-  ix += jx; iz += -jy;
-  const len = Math.hypot(ix, iz); if (len < 0.05) return; if (len > 1) { ix /= len; iz /= len; }
+  ix += jx + gpx; iz += -jy - gpy;
+  const len = Math.hypot(ix, iz);
+  // dodge dash continues along current facing even with no input
+  if (len < 0.05 && dodgeT <= 0) return;
+  if (len > 1) { ix /= len; iz /= len; }
   const fwd = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
   const mv = new THREE.Vector3().addScaledVector(fwd, iz).addScaledVector(right, ix);
-  if (mv.lengthSq() === 0) return; mv.normalize().multiplyScalar(feel.moveSpeed * dt);
+  if (mv.lengthSq() === 0) { if (dodgeT > 0) mv.copy(facing); else return; }
+  const speed = feel.moveSpeed * (dodgeT > 0 ? 2.6 : 1);
+  mv.normalize().multiplyScalar(speed * dt);
   facing.copy(mv).normalize(); dispatch({ type: "MOVE", dx: mv.x, dz: mv.z });
+  // footsteps
+  stepT -= dt; if (stepT <= 0 && dodgeT <= 0) { sfx("step"); stepT = 0.34; }
 }
 function syncZone() { const z = zoneFor(world.player.pos.x); if (z !== world.player.location) { dispatch({ type: "TRAVEL", to: z }); toast(`Entering ${ZONE_LABEL[z]}`, "sys"); } }
 
 function updateEnemies(dt) {
   const p = world.player.pos;
   if (!bossSpawned && world.quests.q_silence_the_king?.state === "active" && p.x > 96) {
-    makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad");
+    makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad"); sfx("roar");
   }
   for (const e of enemies) {
     if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
@@ -214,7 +236,7 @@ function updateEnemies(dt) {
     const d = Math.sqrt(dist2(p, e.pos));
     if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * feel.enemySpeed * dt; e.pos.z += ((p.z - e.pos.z) / d) * feel.enemySpeed * dt; }
     e.cd -= dt;
-    if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
+    if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won && dodgeT <= 0) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
     e.group.position.set(e.pos.x, 0, e.pos.z);
     if (d > 0.1) e.group.rotation.y = Math.atan2(p.x - e.pos.x, p.z - e.pos.z);
     const ent = world.entities[e.id]; const frac = Math.max(0, ent.hp / e.def.maxHp);
@@ -254,22 +276,45 @@ function updateHud() {
   else pr.classList.remove("show");
 }
 
+function objectiveTarget() {
+  const q1 = world.quests.q_clear_the_hollow, q2 = world.quests.q_silence_the_king;
+  if (!q1) return { x: MIRA_POS.x, z: MIRA_POS.z, label: "Elder Mira" };
+  if (q1.state === "active" && !questComplete("q_clear_the_hollow")) return { x: 66, z: 0, label: "Husks → east" };
+  if (q1.state === "active") return { x: MIRA_POS.x, z: MIRA_POS.z, label: "→ Mira" };
+  if (q1.state === "turnedin" && !q2) return { x: MIRA_POS.x, z: MIRA_POS.z, label: "→ Mira" };
+  if (q2 && q2.state === "active" && !world.flags.bossDefeated) { const b = enemies.find((e) => e.typeId === "boss_hollow_king" && e.alive); return b ? { x: b.pos.x, z: b.pos.z, label: "Hollow King" } : { x: 150, z: 0, label: "The Vault" }; }
+  if (q2 && q2.state === "active" && world.flags.bossDefeated) return { x: MIRA_POS.x, z: MIRA_POS.z, label: "→ Mira" };
+  return null;
+}
+function updateCompass() {
+  const c = el("compass"); const t = objectiveTarget(); const p = world.player.pos;
+  if (!t || won) { c.classList.add("hide"); return; }
+  const dx = t.x - p.x, dz = t.z - p.z; const d = Math.hypot(dx, dz);
+  if (d < 6) { c.classList.add("hide"); return; }
+  c.classList.remove("hide");
+  const fwdAngle = Math.atan2(-Math.sin(camYaw), -Math.cos(camYaw));
+  const rel = Math.atan2(dx, dz) - fwdAngle;
+  el("compass-arrow").style.transform = `rotate(${rel}rad)`;
+  el("compass-label").textContent = t.label;
+}
+
 function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
+  pollGamepad(dt);
   if (!paused && !won) {
     if (world.player.hp <= 0) dispatch({ type: "RESPAWN" });
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
-    pAtkCd = Math.max(0, pAtkCd - dt);
+    pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
     movement(dt); syncZone(); updateEnemies(dt);
   }
-  applyTimeOfDay(); updateCamera(); updateHud(); perfGuard(dt);
+  applyTimeOfDay(); updateCamera(); updateHud(); updateCompass(); perfGuard(dt);
   if (webgl) renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 
 // ---------------------------------------------------------------- input
 function bindInput() {
-  addEventListener("keydown", (e) => { const k = e.key.toLowerCase(); if (k === "e") { if (!keys.has("e")) interact(); keys.add("e"); return; } if (k === "f") { if (!keys.has("f")) useSalve(); keys.add("f"); return; } if (k === "r") { if (!keys.has("r")) rest(); keys.add("r"); return; } if (k === " ") { e.preventDefault(); if (!keys.has(" ")) playerAttack(); keys.add(" "); return; } keys.add(k); });
+  addEventListener("keydown", (e) => { const k = e.key.toLowerCase(); if (k === "e") { if (!keys.has("e")) interact(); keys.add("e"); return; } if (k === "f") { if (!keys.has("f")) useSalve(); keys.add("f"); return; } if (k === "r") { if (!keys.has("r")) rest(); keys.add("r"); return; } if (k === "shift") { if (!keys.has("shift")) dodge(); keys.add("shift"); return; } if (k === " ") { e.preventDefault(); if (!keys.has(" ")) playerAttack(); keys.add(" "); return; } keys.add(k); });
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 
   const canvas = el("scene"); let lookId = null, lx = 0, ly = 0, stickId = null, srect = null;
@@ -285,15 +330,15 @@ function bindInput() {
   stick.addEventListener("pointerdown", (e) => { stickId = e.pointerId; srect = stick.getBoundingClientRect(); updateStick(e); e.preventDefault(); });
 
   const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); audioInit(); sfx("ui"); fn(); }); };
-  tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest);
-  const openMenu = () => { el("menu").classList.add("show"); paused = true; };
-  const closeMenu = () => { el("menu").classList.remove("show"); paused = false; lastT = performance.now(); };
+  tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest); tap("b-dodge", dodge);
+  addEventListener("gamepadconnected", (e) => { padIndex = e.gamepad.index; toast("Controller connected: " + (e.gamepad.id.split("(")[0].trim() || "Gamepad"), "sys"); });
+  addEventListener("gamepaddisconnected", (e) => { if (padIndex === e.gamepad.index) padIndex = null; });
   el("b-menu").onclick = openMenu; el("m-resume").onclick = closeMenu;
   el("b-save").onclick = () => { save(); closeMenu(); };
   el("b-load").onclick = () => { load(); closeMenu(); };
   el("m-restart").onclick = restart;
   el("b-help").onclick = () => { el("menu").classList.remove("show"); el("help").classList.add("show"); helpOpen = true; };
-  el("m-mute").onclick = () => { muted = !muted; el("m-mute").textContent = "Sound: " + (muted ? "Off" : "On"); if (!muted) audioInit(); };
+  el("m-mute").onclick = () => { muted = !muted; el("m-mute").textContent = "Sound: " + (muted ? "Off" : "On"); if (!muted) audioInit(); if (windGain) windGain.gain.value = muted ? 0 : 0.012; };
   el("help-go").onclick = closeHelp; el("help-x").onclick = closeHelp;
   el("arch")?.querySelectorAll(".arch").forEach((b) => b.onclick = () => { el("arch").querySelectorAll(".arch").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); chooseArchetype(b.dataset.arch); });
 
@@ -302,6 +347,29 @@ function bindInput() {
   addEventListener("contextmenu", (e) => e.preventDefault());
 }
 function closeHelp() { audioInit(); if (won) { restart(); return; } el("help").classList.remove("show"); helpOpen = false; }
+function openMenu() { el("menu").classList.add("show"); paused = true; }
+function closeMenu() { el("menu").classList.remove("show"); paused = false; lastT = performance.now(); }
+function toggleMenu() { el("menu").classList.contains("show") ? closeMenu() : openMenu(); }
+
+// Xbox / standard gamepad (USB or Bluetooth — both surface through the Gamepad API).
+function pollGamepad(dt) {
+  gpx = 0; gpy = 0;
+  if (padIndex === null || !navigator.getGamepads) return;
+  const gp = navigator.getGamepads()[padIndex]; if (!gp) return;
+  const down = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => down(i) && !prevBtn[i];
+  if (edge(9)) toggleMenu();                                    // Start → pause menu
+  if (!paused && !helpOpen) {
+    const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
+    gpx = dz(gp.axes[0] || 0); gpy = dz(gp.axes[1] || 0);       // left stick → move
+    const rx = dz(gp.axes[2] || 0), ry = dz(gp.axes[3] || 0);   // right stick → look
+    camYaw -= rx * 2.6 * dt; camPitch = Math.max(0.12, Math.min(1.2, camPitch + ry * 1.9 * dt));
+    if (down(0) || down(5) || down(7)) playerAttack();          // A / RB / RT
+    if (edge(2)) interact();                                    // X
+    if (edge(3)) useSalve();                                    // Y
+    if (edge(1)) dodge();                                       // B
+  }
+  for (let i = 0; i < gp.buttons.length; i++) prevBtn[i] = down(i);
+}
 function chooseArchetype(id) {
   if (id === archetype) return; archetype = id;
   for (const e of enemies) if (scene) scene.remove(e.group);
@@ -337,7 +405,7 @@ function tryInitRenderer() {
     window.__game = {
       get world() { return world; }, get webgl() { return webgl; }, get enemies() { return enemies; }, ready: true, zoneFor, feel,
       move: (dx, dz) => { dispatch({ type: "MOVE", dx, dz }); syncZone(); }, advanceMinutes: (m) => dispatch({ type: "ADVANCE_TIME", minutes: m }),
-      interact, attack: playerAttack, closeHelp, setJoy: (x, y) => { jx = x; jy = y; },
+      interact, attack: playerAttack, dodge, closeHelp, setJoy: (x, y) => { jx = x; jy = y; }, get dodgeActive() { return dodgeT > 0; },
     };
     lastT = performance.now(); requestAnimationFrame(frame);
   } catch (err) { const b = el("boot"); b.className = "error"; b.textContent = "Failed to summon the realm: " + err.message; throw err; }
