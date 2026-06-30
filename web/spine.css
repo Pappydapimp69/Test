@@ -31,7 +31,7 @@ body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-se
 #quest .obj-done { color: var(--good); } #quest .obj-todo { color: var(--muted); }
 #quest:empty { display: none; }
 
-#target { position: fixed; left: max(12px, env(safe-area-inset-left)); top: 124px; width: 210px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; backdrop-filter: blur(4px); display: none; }
+#target { position: fixed; left: max(12px, env(safe-area-inset-left)); top: 124px; width: 186px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; backdrop-filter: blur(4px); display: none; }
 #target.show { display: block; }
 #target .tn { font-size: .78rem; display: flex; justify-content: space-between; margin-bottom: 3px; }
 #target .tn .boss { color: var(--bad); }

@@ -132,10 +132,23 @@ function setupScene() {
   scene.add(box(14, 3, 3, 0x15161d, VAULT_X, 12, 0)); scene.add(box(7, 9, 1, 0x000000, VAULT_X, 5, 0, false));
 
   playerMesh = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(archetype === "seeker" ? 0xd8b765 : 0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
   playerMesh.add(body); playerMesh.add(box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1)); playerMesh.userData.body = body; scene.add(playerMesh);
 
+  // distant silhouettes for depth (cheap, no shadows)
+  for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
+    scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
+
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+
+// ---------------------------------------------------------------- perf guard
+let _ft = [], _downgraded = false;
+function perfGuard(dt) {
+  if (_downgraded || !webgl || dt <= 0) return;
+  _ft.push(dt); if (_ft.length < 90) return;
+  const avg = _ft.reduce((a, b) => a + b, 0) / _ft.length; _ft = [];
+  if (avg > 0.04) { renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; _downgraded = true; } // sustained <~25fps
 }
 
 // ---------------------------------------------------------------- day/night
@@ -216,7 +229,8 @@ function updateCamera() {
   playerMesh.position.set(p.x, 0, p.z); playerMesh.rotation.y = Math.atan2(facing.x, facing.z);
   lungeT = Math.max(0, lungeT - 0.016); playerMesh.userData.body.position.z = lungeT * 6; // lunge on attack
   const mira = scene.userData.mira; if (mira) mira.userData.mk.rotation.y += 0.02;
-  const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(feel.camDistance);
+  const camDist = feel.camDistance * (TOUCH ? 0.9 : 1); // pull in a touch on phones
+  const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(camDist);
   let sx = 0, sy = 0;
   if (shakeT > 0) { shakeT = Math.max(0, shakeT - 0.016); const a = shakeT * 2.2; sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a; }
   camera.position.set(p.x + off.x + sx, Math.max(3, off.y + feel.camHeight * 0.5 + sy), p.z + off.z); camera.lookAt(p.x, 2, p.z);
@@ -248,7 +262,7 @@ function frame(now) {
     pAtkCd = Math.max(0, pAtkCd - dt);
     movement(dt); syncZone(); updateEnemies(dt);
   }
-  applyTimeOfDay(); updateCamera(); updateHud();
+  applyTimeOfDay(); updateCamera(); updateHud(); perfGuard(dt);
   if (webgl) renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -295,6 +309,7 @@ function chooseArchetype(id) {
   world = createWorld(seed);
   dispatch({ type: "CREATE_CHARACTER", archetypeId: id });
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+  if (playerMesh) playerMesh.userData.body.material.color.setHex(id === "seeker" ? 0xd8b765 : 0xcfd6e6);
 }
 
 // ---------------------------------------------------------------- save / restart
