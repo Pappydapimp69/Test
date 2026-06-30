@@ -14,6 +14,7 @@ import { reduce } from "../src/sim/reduce.mjs";
 import { countItem } from "../src/sim/player.mjs";
 
 const TOUCH = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MAX_DT = 0.1;
 
 const ZONE_LABEL = { village_square: "The Village", wilderness: "The Wilderness", dungeon: "The Sunken Vault" };
@@ -35,15 +36,30 @@ let renderer = null, scene = null, camera = null, webgl = false;
 let playerMesh = null, sun = null, hemi = null;
 let camYaw = -Math.PI / 2, camPitch = 0.34, lowSpec = TOUCH;
 let lastT = 0, paused = false, started = false, helpOpen = true, won = false;
+let seed = 1337, archetype = "warden";
 
 const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dying, dieT, cd, lunge }
 const byId = new Map();
 let bossSpawned = false;
-let pAtkCd = 0, lungeT = 0;
+let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
 const facing = new THREE.Vector3(1, 0, 0);
 const el = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- audio (WebAudio, gesture-init)
+let actx = null, muted = false;
+function audioInit() { if (actx || muted) return; try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { actx = null; } }
+function beep(freq, dur = 0.08, type = "square", gain = 0.045) { if (!actx || muted) return; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
+function sfx(kind) {
+  if (kind === "hit") beep(300, 0.05, "square", 0.035);
+  else if (kind === "hurt") beep(130, 0.12, "sawtooth", 0.05);
+  else if (kind === "die") beep(90, 0.2, "sawtooth", 0.05);
+  else if (kind === "loot") beep(660, 0.07, "triangle", 0.04);
+  else if (kind === "level") { beep(523, 0.1); setTimeout(() => beep(784, 0.12), 90); }
+  else if (kind === "ui") beep(440, 0.035, "sine", 0.03);
+  else if (kind === "win") { beep(523, 0.15); setTimeout(() => beep(659, 0.15), 130); setTimeout(() => beep(784, 0.22), 280); }
+}
 
 // ---------------------------------------------------------------- toasts / fx
 function toast(text, cls = "") { const t = el("toast"); if (!t) return; const p = document.createElement("p"); p.className = cls; p.textContent = text; t.appendChild(p); setTimeout(() => p.remove(), 5000); }
@@ -58,13 +74,13 @@ function popText(x, y, z, text, cls) {
 function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
 function processEvents(events) {
   for (const e of events) {
-    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); }
-    else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); }
-    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } }
-    else if (e.type === "LEVEL_UP") toast(`Level up — ${e.level}!`, "sys");
-    else if (e.type === "LOOT_GAINED") toast(`Looted ${content.items.get(e.itemId).name}`, "good");
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit"); }
+    else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
+    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die"); }
+    else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
+    else if (e.type === "LOOT_GAINED") { toast(`Looted ${content.items.get(e.itemId).name}`, "good"); sfx("loot"); }
     else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
-    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); if (e.questId === "q_silence_the_king") victory(); }
+    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); sfx("win"); if (e.questId === "q_silence_the_king") victory(); }
     else if (e.type === "BOSS_DEFEATED") toast("THE HOLLOW KING FALLS.", "good");
     else if (e.type === "PHASE_CHANGED") toast(`${e.phase} settles over the realm`, "");
     else if (e.type === "RESTED") toast("You rest and recover.", "good");
@@ -92,7 +108,7 @@ function makeEnemy(typeId, x, z) {
   const fill = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: isBoss ? 0xd2685f : 0xc06a3a }));
   fill.position.z = 0.01; bar.add(bg); bar.add(fill); group.add(bar);
   group.position.set(x, 0, z); scene && scene.add(group);
-  const rec = { id: ent.id, typeId, def, group, fill, bar, pos: { x, z }, alive: true, dying: false, dieT: 0, cd: 0, s };
+  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, alive: true, dying: false, dieT: 0, cd: 0, s };
   enemies.push(rec); byId.set(ent.id, rec); return rec;
 }
 
@@ -116,10 +132,23 @@ function setupScene() {
   scene.add(box(14, 3, 3, 0x15161d, VAULT_X, 12, 0)); scene.add(box(7, 9, 1, 0x000000, VAULT_X, 5, 0, false));
 
   playerMesh = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(archetype === "seeker" ? 0xd8b765 : 0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
   playerMesh.add(body); playerMesh.add(box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1)); playerMesh.userData.body = body; scene.add(playerMesh);
 
+  // distant silhouettes for depth (cheap, no shadows)
+  for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
+    scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
+
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+
+// ---------------------------------------------------------------- perf guard
+let _ft = [], _downgraded = false;
+function perfGuard(dt) {
+  if (_downgraded || !webgl || dt <= 0) return;
+  _ft.push(dt); if (_ft.length < 90) return;
+  const avg = _ft.reduce((a, b) => a + b, 0) / _ft.length; _ft = [];
+  if (avg > 0.04) { renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; _downgraded = true; } // sustained <~25fps
 }
 
 // ---------------------------------------------------------------- day/night
@@ -191,6 +220,8 @@ function updateEnemies(dt) {
     const ent = world.entities[e.id]; const frac = Math.max(0, ent.hp / e.def.maxHp);
     e.fill.scale.x = frac; e.fill.position.x = -2 * (1 - frac);
     if (camera) e.bar.quaternion.copy(camera.quaternion);
+    // boss telegraph: glow red as its strike winds up
+    if (e.def.isBoss && e.body.material.emissive) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
   }
 }
 function updateCamera() {
@@ -198,8 +229,12 @@ function updateCamera() {
   playerMesh.position.set(p.x, 0, p.z); playerMesh.rotation.y = Math.atan2(facing.x, facing.z);
   lungeT = Math.max(0, lungeT - 0.016); playerMesh.userData.body.position.z = lungeT * 6; // lunge on attack
   const mira = scene.userData.mira; if (mira) mira.userData.mk.rotation.y += 0.02;
-  const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(feel.camDistance);
-  camera.position.set(p.x + off.x, Math.max(3, off.y + feel.camHeight * 0.5), p.z + off.z); camera.lookAt(p.x, 2, p.z);
+  const camDist = feel.camDistance * (TOUCH ? 0.9 : 1); // pull in a touch on phones
+  const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(camDist);
+  let sx = 0, sy = 0;
+  if (shakeT > 0) { shakeT = Math.max(0, shakeT - 0.016); const a = shakeT * 2.2; sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a; }
+  camera.position.set(p.x + off.x + sx, Math.max(3, off.y + feel.camHeight * 0.5 + sy), p.z + off.z); camera.lookAt(p.x, 2, p.z);
+  if (hurtFlash > 0) hurtFlash = Math.max(0, hurtFlash - 0.03); el("vignette").style.opacity = hurtFlash;
 }
 function updateHud() {
   const p = world.player, t = world.time;
@@ -227,7 +262,7 @@ function frame(now) {
     pAtkCd = Math.max(0, pAtkCd - dt);
     movement(dt); syncZone(); updateEnemies(dt);
   }
-  applyTimeOfDay(); updateCamera(); updateHud();
+  applyTimeOfDay(); updateCamera(); updateHud(); perfGuard(dt);
   if (webgl) renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -249,16 +284,33 @@ function bindInput() {
   function updateStick(e) { const r = srect, cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = e.clientX - cx, dy = e.clientY - cy; const rad = r.width / 2; const m = Math.hypot(dx, dy); if (m > rad) { dx *= rad / m; dy *= rad / m; } jx = dx / rad; jy = dy / rad; knob.style.transform = `translate(${dx}px,${dy}px)`; }
   stick.addEventListener("pointerdown", (e) => { stickId = e.pointerId; srect = stick.getBoundingClientRect(); updateStick(e); e.preventDefault(); });
 
-  const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); fn(); }); };
+  const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); audioInit(); sfx("ui"); fn(); }); };
   tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest);
-  el("b-save").onclick = save; el("b-load").onclick = load; el("b-help").onclick = () => { el("help").classList.add("show"); helpOpen = true; };
+  const openMenu = () => { el("menu").classList.add("show"); paused = true; };
+  const closeMenu = () => { el("menu").classList.remove("show"); paused = false; lastT = performance.now(); };
+  el("b-menu").onclick = openMenu; el("m-resume").onclick = closeMenu;
+  el("b-save").onclick = () => { save(); closeMenu(); };
+  el("b-load").onclick = () => { load(); closeMenu(); };
+  el("m-restart").onclick = restart;
+  el("b-help").onclick = () => { el("menu").classList.remove("show"); el("help").classList.add("show"); helpOpen = true; };
+  el("m-mute").onclick = () => { muted = !muted; el("m-mute").textContent = "Sound: " + (muted ? "Off" : "On"); if (!muted) audioInit(); };
   el("help-go").onclick = closeHelp; el("help-x").onclick = closeHelp;
+  el("arch")?.querySelectorAll(".arch").forEach((b) => b.onclick = () => { el("arch").querySelectorAll(".arch").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); chooseArchetype(b.dataset.arch); });
 
   addEventListener("resize", () => { if (!webgl) return; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
   document.addEventListener("visibilitychange", () => { paused = document.hidden; if (!paused) lastT = performance.now(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
 }
-function closeHelp() { if (won) { restart(); return; } el("help").classList.remove("show"); helpOpen = false; }
+function closeHelp() { audioInit(); if (won) { restart(); return; } el("help").classList.remove("show"); helpOpen = false; }
+function chooseArchetype(id) {
+  if (id === archetype) return; archetype = id;
+  for (const e of enemies) if (scene) scene.remove(e.group);
+  enemies.length = 0; byId.clear(); bossSpawned = false; won = false;
+  world = createWorld(seed);
+  dispatch({ type: "CREATE_CHARACTER", archetypeId: id });
+  for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+  if (playerMesh) playerMesh.userData.body.material.color.setHex(id === "seeker" ? 0xd8b765 : 0xcfd6e6);
+}
 
 // ---------------------------------------------------------------- save / restart
 function save() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); toast("Game saved.", "sys"); } catch { toast("Save failed.", "bad"); } }
@@ -277,8 +329,9 @@ function tryInitRenderer() {
   if (TOUCH) document.body.classList.add("touch");
   try {
     [content, feel] = await Promise.all([loadContentBrowser(), fetch(new URL("../src/data/feel.json", import.meta.url)).then((r) => r.json())]);
-    world = createWorld(Math.floor(Date.now() % 1e9) || 1337);
-    dispatch({ type: "CREATE_CHARACTER", archetypeId: "warden" });
+    seed = Math.floor(Date.now() % 1e9) || 1337;
+    world = createWorld(seed);
+    dispatch({ type: "CREATE_CHARACTER", archetypeId: archetype });
     tryInitRenderer(); if (webgl) setupScene(); bindInput();
     el("boot").classList.add("hidden");
     window.__game = {
