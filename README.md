@@ -11,23 +11,37 @@ experiment). The thinking that produced it is distributed across the sibling
 
 ## ▶ Play it live
 
-**https://pappydapimp69.github.io/Test/** — a playable browser slice that runs
-the *real* simulation core through a text UI: create a character, take quests,
-fight through the wilderness and dungeon, loot, and end the Hollow King — with
-save/load and a live day/night clock. (No 3D yet; that's Milestone 1. Every button
-issues a command to the same `reduce()` reducer the headless test drives.)
+**https://pappydapimp69.github.io/Test/** — the **3D render spine** (Milestone 1):
+a greybox world you walk in third-person — village hub, wilderness, and the
+Sunken Vault — with an orbit camera, a live day/night cycle, and NPC interaction
+that accepts quests. Controls: `WASD` move · drag to look · `E` interact · `R` rest.
+
+Prefer the full systems loop (combat, loot, boss)? The **text slice** lives at
+**[/text.html](https://pappydapimp69.github.io/Test/text.html)**.
+
+Both front-ends drive the same authoritative `reduce()` core — the renderer reads
+`world` and issues commands, it never mutates state.
 
 > Deployed by `.github/workflows/pages.yml`, which first runs the headless
-> assertions and only publishes if they pass.
+> assertions + the deterministic replay test and only publishes if they pass.
 
-## Status — Milestone 0 complete (Design + Simulation Core)
+## Status — Milestone 1 complete (Render Spine)
+
+The 3D render spine is built and verified end-to-end in headless Chromium (boot →
+day/night cycle → quest accept → traverse village→wilderness→vault, no console
+errors). It sits on the Milestone 0 simulation core below.
+
+## Milestone 0 (Design + Simulation Core)
 
 The **authoritative simulation** is built and proven. There is no 3D renderer
 yet (Milestone 1), but the *systems* already form a complete game loop you can
 run and watch:
 
 ```bash
-npm run demo      # headless vertical-slice playthrough, asserts all success criteria
+npm run verify    # headless vertical-slice assertions + deterministic replay test
+npm run demo      # just the scripted playthrough (asserts all success criteria)
+npm run replay    # just the determinism/regression golden test
+npm run dev       # serve locally at http://localhost:8099 to play in a browser
 ```
 
 This drives the real game systems through a scripted command stream and verifies

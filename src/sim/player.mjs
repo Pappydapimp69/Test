@@ -21,6 +21,7 @@ export function createCharacter(world, archetypeId, content) {
     stamina: b.maxStamina,
     maxStamina: b.maxStamina,
     location: "village_square",
+    pos: { x: 0, z: 0 }, // fine-grained world position (renderer-driven, advisory)
     inventory: [], // [{ itemId, qty }]
     equipped: { mainhand: null, chest: null },
   };

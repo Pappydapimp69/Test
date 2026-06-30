@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "demo": "node src/sim/demo.mjs",
-    "test": "node src/sim/demo.mjs",
-    "dev": "echo 'Render layer (Three.js + Vite) lands in Milestone 1 — see docs/06-mvp-roadmap.md' && exit 1"
+    "replay": "node src/sim/replay.mjs",
+    "verify": "node src/sim/demo.mjs && node src/sim/replay.mjs",
+    "test": "node src/sim/demo.mjs && node src/sim/replay.mjs",
+    "dev": "python3 -m http.server 8099"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.185.0"
+  }
 }

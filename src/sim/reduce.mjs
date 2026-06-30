@@ -184,6 +184,18 @@ export function reduce(world, cmd, content) {
       return done();
     }
 
+    case "MOVE": {
+      // Kinematic, advisory position update from the renderer. Deliberately
+      // emits NO event and NO authoritative outcome depends on float position
+      // (honors tension T2: physics stays cosmetic, the sim stays deterministic).
+      const p = world.player;
+      if (!p) return fail("no character");
+      if (!p.pos) p.pos = { x: 0, z: 0 };
+      p.pos.x = Math.max(-60, Math.min(160, p.pos.x + (cmd.dx || 0)));
+      p.pos.z = Math.max(-80, Math.min(80, p.pos.z + (cmd.dz || 0)));
+      return done();
+    }
+
     case "TRAVEL": {
       if (!world.player) return fail("no character");
       world.player.location = cmd.to;
