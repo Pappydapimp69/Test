@@ -3,13 +3,12 @@
 // test drives. It never mutates `world` directly (the one architectural rule
 // from docs/01). No 3D yet; the Three.js renderer is Milestone 1.
 
-import { indexContent } from "../src/sim/contentIndex.mjs";
+import { loadContentBrowser } from "./contentWeb.mjs";
 import { createWorld, spawnEnemy } from "../src/sim/world.mjs";
 import { reduce } from "../src/sim/reduce.mjs";
 import { serialize, deserialize } from "../src/sim/save.mjs";
 import { countItem, effectivePower, effectiveDefense } from "../src/sim/player.mjs";
 
-const DATA = ["items", "enemies", "quests", "npcs", "archetypes"];
 const LOCATIONS = {
   village_square: "the Village",
   wilderness: "the Wilderness",
@@ -22,17 +21,6 @@ let fight = null; // the enemy entity currently being fought, or null
 let uiLog = [];
 
 const app = document.getElementById("app");
-
-async function loadContentBrowser() {
-  const raw = {};
-  await Promise.all(DATA.map(async (n) => {
-    const url = new URL(`../src/data/${n}.json`, import.meta.url);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`failed to load ${n}.json (${res.status})`);
-    raw[n] = await res.json();
-  }));
-  return indexContent(raw);
-}
 
 // ---- logging ---------------------------------------------------------------
 function logMsg(cls, text) { uiLog.push({ cls, text }); if (uiLog.length > 120) uiLog.shift(); }

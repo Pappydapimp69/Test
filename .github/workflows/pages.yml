@@ -30,8 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Headless vertical-slice assertions
-        run: node src/sim/demo.mjs
+      - name: Headless assertions + deterministic replay
+        run: npm run verify
 
   deploy:
     needs: verify
