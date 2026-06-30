@@ -134,8 +134,10 @@ export function reduce(world, cmd, content) {
           world.flags.bossDefeated = true;
           events.push(logEvent(world, { type: "BOSS_DEFEATED", typeId: target.typeId }));
         }
-      } else {
-        // Retaliation: the enemy strikes back this exchange.
+      } else if (cmd.retaliate !== false) {
+        // Turn-based exchange (headless demo/replay): the enemy strikes back now.
+        // Real-time 3D passes retaliate:false and drives enemy hits via
+        // ENEMY_STRIKE on its own cooldown instead.
         const nightBonus = world.time.phase === "night" ? (eDef.nightAggroBonus || 0) : 0;
         const back = rollDamage(world, eDef.power + nightBonus, effectiveDefense(world, content));
         world.player.hp = Math.max(0, world.player.hp - back);
@@ -146,6 +148,22 @@ export function reduce(world, cmd, content) {
         }
       }
       syncCollectObjectives(world, content);
+      return done();
+    }
+
+    case "ENEMY_STRIKE": {
+      // An enemy damages the player (real-time AI, renderer-driven cooldown).
+      const e = world.entities[cmd.entityId];
+      if (!e || !e.alive) return fail("invalid attacker");
+      const def = content.enemies.get(e.typeId);
+      const nightBonus = world.time.phase === "night" ? (def.nightAggroBonus || 0) : 0;
+      const dmg = rollDamage(world, def.power + nightBonus, effectiveDefense(world, content));
+      world.player.hp = Math.max(0, world.player.hp - dmg);
+      events.push(logEvent(world, { type: "DAMAGE_TAKEN", dmg, from: e.id }));
+      if (world.player.hp <= 0) {
+        world.flags.playerDown = true;
+        events.push(logEvent(world, { type: "PLAYER_DOWNED" }));
+      }
       return done();
     }
 
@@ -181,6 +199,18 @@ export function reduce(world, cmd, content) {
         events.push(logEvent(world, { type: "LOOT_GAINED", itemId, qty: 1 }));
       }
       events.push(logEvent(world, { type: "QUEST_TURNED_IN", questId: cmd.questId }));
+      return done();
+    }
+
+    case "RESPAWN": {
+      // Soft death (docs/03): revive at the village with progress intact.
+      const p = world.player;
+      if (!p) return fail("no character");
+      p.hp = p.maxHp;
+      p.location = "village_square";
+      p.pos = { x: 0, z: 0 };
+      world.flags.playerDown = false;
+      events.push(logEvent(world, { type: "RESPAWNED" }));
       return done();
     }
 

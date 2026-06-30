@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Echoes of the Shattered Realm — 3D Render Spine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#05060a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Echoes of the Shattered Realm</title>
   <link rel="stylesheet" href="./web/spine.css" />
 </head>
 <body>
@@ -21,14 +24,48 @@
       <div id="hptext"></div>
     </div>
     <div id="quest"></div>
+    <div id="target"></div>
     <div id="prompt"></div>
     <div id="toast"></div>
+    <div id="dmg"></div>
   </div>
 
-  <div id="help">
-    <strong>Echoes of the Shattered Realm</strong> — Milestone 1: Render Spine
-    <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · drag mouse to look · <kbd>E</kbd> interact · <kbd>R</kbd> rest · walk east to the Sunken Vault</div>
-    <div class="note">Greybox world driving the same authoritative <code>reduce()</code> core. Combat feel is Milestone&nbsp;2. Prefer the full systems loop? <a href="./text.html">Play the text slice →</a></div>
+  <!-- Touch controls (shown on coarse-pointer devices) -->
+  <div id="touch">
+    <div id="stick"><div id="knob"></div></div>
+    <div id="btns">
+      <button id="b-attack" class="tbtn atk">⚔</button>
+      <button id="b-interact" class="tbtn">✦</button>
+      <button id="b-salve" class="tbtn">✚</button>
+      <button id="b-rest" class="tbtn small">⏾</button>
+    </div>
+  </div>
+
+  <!-- Top-right utility buttons (both platforms) -->
+  <div id="util">
+    <button id="b-save" class="ubtn">Save</button>
+    <button id="b-load" class="ubtn">Load</button>
+    <button id="b-help" class="ubtn">?</button>
+  </div>
+
+  <div id="help" class="show">
+    <button id="help-x">✕</button>
+    <strong>Echoes of the Shattered Realm</strong>
+    <div class="body">
+      Take quests from Elder Mira (gold), thin the husks in the wilderness to the
+      east, recover the seal, then descend into the Sunken Vault and end the
+      Hollow King.
+    </div>
+    <div class="keys" data-desktop>
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · drag mouse to look ·
+      <kbd>Space</kbd> attack · <kbd>E</kbd> interact · <kbd>F</kbd> salve · <kbd>R</kbd> rest
+    </div>
+    <div class="keys" data-touch>
+      Left stick to move · drag the right side to look · ⚔ attack · ✦ interact ·
+      ✚ salve · ⏾ rest
+    </div>
+    <div class="note">Prefer a menu-driven version? <a href="./text.html">Play the text slice →</a></div>
+    <button id="help-go">Enter the realm</button>
   </div>
 
   <div id="boot">Summoning the realm…</div>
