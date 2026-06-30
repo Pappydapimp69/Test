@@ -1,0 +1,21 @@
+{
+  "$schema": "./schema/archetype.schema.json",
+  "archetypes": [
+    {
+      "id": "warden",
+      "name": "Ash Warden",
+      "blurb": "A frontline survivor of the Shattering. Trades reach for resilience.",
+      "baseStats": { "maxHp": 120, "power": 14, "defense": 8, "maxStamina": 100 },
+      "startingSkills": { "blade": 2, "guard": 2, "lore": 0 },
+      "startingItems": ["wpn_iron_sword", "arm_leather_jerkin", "con_minor_salve"]
+    },
+    {
+      "id": "seeker",
+      "name": "Relic Seeker",
+      "blurb": "A scholar-scavenger who reads ruins like books. Fragile but sharp.",
+      "baseStats": { "maxHp": 90, "power": 18, "defense": 5, "maxStamina": 120 },
+      "startingSkills": { "blade": 1, "guard": 0, "lore": 3 },
+      "startingItems": ["wpn_ruin_dagger", "arm_traveler_cloak", "con_minor_salve"]
+    }
+  ]
+}

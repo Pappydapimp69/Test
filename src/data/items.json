@@ -1,0 +1,14 @@
+{
+  "items": [
+    { "id": "wpn_iron_sword",    "name": "Iron Sword",        "type": "weapon",     "slot": "mainhand", "power": 8,  "tags": ["blade"], "value": 25 },
+    { "id": "wpn_ruin_dagger",   "name": "Ruin Dagger",       "type": "weapon",     "slot": "mainhand", "power": 6,  "tags": ["blade"], "value": 20 },
+    { "id": "wpn_ember_blade",   "name": "Ember Blade",       "type": "weapon",     "slot": "mainhand", "power": 16, "tags": ["blade","fire"], "value": 120 },
+    { "id": "arm_leather_jerkin","name": "Leather Jerkin",    "type": "armor",      "slot": "chest",    "defense": 4, "tags": [], "value": 30 },
+    { "id": "arm_traveler_cloak","name": "Traveler's Cloak",  "type": "armor",      "slot": "chest",    "defense": 2, "tags": [], "value": 18 },
+    { "id": "arm_wardplate",     "name": "Wardplate Cuirass", "type": "armor",      "slot": "chest",    "defense": 9, "tags": ["heavy"], "value": 140 },
+    { "id": "con_minor_salve",   "name": "Minor Salve",       "type": "consumable", "heal": 35,  "tags": ["heal"], "value": 12 },
+    { "id": "con_greater_salve", "name": "Greater Salve",     "type": "consumable", "heal": 80,  "tags": ["heal"], "value": 40 },
+    { "id": "mat_husk_shard",    "name": "Husk Shard",        "type": "material",   "tags": ["quest"], "value": 5 },
+    { "id": "key_dungeon_seal",  "name": "Cracked Seal",      "type": "key",        "tags": ["quest"], "value": 0 }
+  ]
+}

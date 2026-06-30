@@ -1,0 +1,27 @@
+{
+  "quests": [
+    {
+      "id": "q_clear_the_hollow",
+      "name": "Clear the Hollow",
+      "giver": "npc_elder_mira",
+      "summary": "Elder Mira asks you to thin the husks haunting the wilderness and recover proof of the old seal.",
+      "prereq": [],
+      "objectives": [
+        { "id": "o_kill_husks",   "type": "kill",    "target": "husk_wanderer", "count": 3, "desc": "Slay Husk Wanderers" },
+        { "id": "o_collect_shard","type": "collect", "target": "mat_husk_shard", "count": 3, "desc": "Recover Husk Shards" }
+      ],
+      "rewards": { "xp": 120, "items": ["con_greater_salve", "key_dungeon_seal"] }
+    },
+    {
+      "id": "q_silence_the_king",
+      "name": "Silence the Hollow King",
+      "giver": "npc_elder_mira",
+      "summary": "With the seal in hand, descend into the Sunken Vault and end the Hollow King's vigil.",
+      "prereq": ["q_clear_the_hollow"],
+      "objectives": [
+        { "id": "o_kill_boss", "type": "kill", "target": "boss_hollow_king", "count": 1, "desc": "Defeat the Hollow King" }
+      ],
+      "rewards": { "xp": 400, "items": [] }
+    }
+  ]
+}

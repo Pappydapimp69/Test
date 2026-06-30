@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Echoes of the Shattered Realm — Playable Slice</title>
+  <link rel="stylesheet" href="./web/style.css" />
+</head>
+<body data-phase="day">
+  <header>
+    <h1>Echoes of the Shattered Realm</h1>
+    <p class="tagline">A playable vertical slice — the real authoritative simulation, running in your browser.</p>
+  </header>
+
+  <main id="app">
+    <p class="boot">Loading the realm…</p>
+  </main>
+
+  <footer>
+    <p>
+      No 3D yet — this is the <strong>Milestone&nbsp;0</strong> simulation core
+      (combat · quests · loot · day/night · save/load) played through a text UI.
+      Every button below issues a command to the same <code>reduce()</code> reducer the
+      headless test drives. The Three.js renderer is Milestone&nbsp;1.
+    </p>
+    <p class="links">
+      <a href="https://github.com/Pappydapimp69/Test">Source</a> ·
+      <a href="https://github.com/Pappydapimp69/Test/tree/claude/shattered-realm-architecture-lv3lb4/docs">Design docs</a>
+    </p>
+  </footer>
+
+  <script type="module" src="./web/app.mjs"></script>
+</body>
+</html>
