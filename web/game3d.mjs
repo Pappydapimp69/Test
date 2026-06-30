@@ -1,330 +1,291 @@
-// Milestone 1 — the Render Spine.
+// Echoes of the Shattered Realm — 3D client (Milestones 1–2+).
 //
-// PRESENTATION ONLY. It reads `world` and issues commands (MOVE / TRAVEL /
-// ACCEPT_QUEST / …) through the same authoritative reduce() the headless test
-// drives. It never mutates `world` directly. The 3D is greybox by design
-// (docs/06 M1); combat *feel* is M2.
-//
-// Retrieved lessons applied (Brain → memory):
-//   • lockstep E6  → clamp max frame delta (a tab stall must not jump the clock
-//                    or teleport the player).
-//   • [input][coop] → edge-gate the interact key so one press fires once.
-//   • [phaser][vite] → guard the single canvas/loop owner against double-init.
-// Honors tension T2: movement is kinematic & cosmetic; no authoritative
-// outcome depends on float position, so the sim stays deterministic.
+// PRESENTATION ONLY. Reads `world`, issues commands through the authoritative
+// reduce(); never mutates `world` directly. Mobile-first: touch joystick + look
+// + on-screen buttons, responsive HUD, low-spec perf mode. Real-time combat is
+// kinematic/cosmetic in the renderer (enemy positions live here, not in the sim)
+// so the sim stays deterministic — honors tension T2. Lessons applied: clamp
+// frame delta + pause on blur (lockstep E6), edge-gate keys ([input][coop]).
 
 import * as THREE from "./vendor/three.module.js";
 import { loadContentBrowser } from "./contentWeb.mjs";
-import { createWorld } from "../src/sim/world.mjs";
+import { createWorld, spawnEnemy } from "../src/sim/world.mjs";
 import { reduce } from "../src/sim/reduce.mjs";
 import { countItem } from "../src/sim/player.mjs";
 
-const TIME_SCALE = 3;        // in-game minutes per real second (~8 min/day)
-const MOVE_SPEED = 14;       // world units / second
-const MAX_DT = 0.1;          // clamp (lockstep E6) — seconds
-const INTERACT_RANGE = 8;
+const TOUCH = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+const MAX_DT = 0.1;
 
-const DUNGEON_X = 108;       // entrance; zone math below
-function zoneFor(x) {
-  if (x >= 96) return "dungeon";
-  if (x >= 34) return "wilderness";
-  return "village_square";
-}
 const ZONE_LABEL = { village_square: "The Village", wilderness: "The Wilderness", dungeon: "The Sunken Vault" };
+function zoneFor(x) { return x >= 96 ? "dungeon" : x >= 34 ? "wilderness" : "village_square"; }
+const MIRA_POS = { x: 0, z: 6 };
+const VAULT_X = 104;
 
-// ---- module state ----------------------------------------------------------
-let content, world;
+// fixed greybox enemy layout (renderer-side homes)
+const SPAWNS = [
+  { typeId: "husk_wanderer", x: 46, z: -10 }, { typeId: "husk_wanderer", x: 56, z: 9 },
+  { typeId: "husk_wanderer", x: 66, z: -12 }, { typeId: "husk_wanderer", x: 76, z: 11 },
+  { typeId: "husk_wanderer", x: 86, z: -6 },
+  { typeId: "ruin_stalker", x: 110, z: 7 }, { typeId: "ruin_stalker", x: 124, z: -9 },
+  { typeId: "ruin_stalker", x: 136, z: 6 },
+];
+
+let content, feel, world;
 let renderer = null, scene = null, camera = null, webgl = false;
-let playerMesh = null, miraMesh = null, sun = null, hemi = null;
-let camYaw = -Math.PI / 2, camPitch = 0.34; // start looking east (toward the vault)
-const keys = new Set();
-let lastT = 0, started = false;
-const facing = new THREE.Vector3(1, 0, 0);
+let playerMesh = null, sun = null, hemi = null;
+let camYaw = -Math.PI / 2, camPitch = 0.34, lowSpec = TOUCH;
+let lastT = 0, paused = false, started = false, helpOpen = true, won = false;
 
+const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dying, dieT, cd, lunge }
+const byId = new Map();
+let bossSpawned = false;
+let pAtkCd = 0, lungeT = 0;
+const keys = new Set();
+let jx = 0, jy = 0;           // joystick vector
+const facing = new THREE.Vector3(1, 0, 0);
 const el = (id) => document.getElementById(id);
 
-// ---- toasts / HUD ----------------------------------------------------------
-function toast(text, cls = "") {
-  const t = el("toast"); if (!t) return;
-  const p = document.createElement("p"); p.className = cls; p.textContent = text;
-  t.appendChild(p); setTimeout(() => p.remove(), 5000);
+// ---------------------------------------------------------------- toasts / fx
+function toast(text, cls = "") { const t = el("toast"); if (!t) return; const p = document.createElement("p"); p.className = cls; p.textContent = text; t.appendChild(p); setTimeout(() => p.remove(), 5000); }
+function project(x, y, z) { const v = new THREE.Vector3(x, y, z).project(camera); return { sx: (v.x * 0.5 + 0.5) * innerWidth, sy: (-v.y * 0.5 + 0.5) * innerHeight, vis: v.z < 1 }; }
+function popText(x, y, z, text, cls) {
+  if (!webgl) return; const p = project(x, y, z); if (!p.vis) return;
+  const s = document.createElement("span"); s.className = cls; s.textContent = text;
+  s.style.left = p.sx + "px"; s.style.top = p.sy + "px"; el("dmg").appendChild(s); setTimeout(() => s.remove(), 900);
 }
-function describeToast(events) {
+
+// ---------------------------------------------------------------- dispatch
+function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
+function processEvents(events) {
   for (const e of events) {
-    if (e.type === "QUEST_ACCEPTED") toast(`Quest accepted — ${content.quests.get(e.questId).name}`, "sys");
-    else if (e.type === "QUEST_TURNED_IN") toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good");
-    else if (e.type === "LOOT_GAINED") toast(`Looted ${content.items.get(e.itemId).name}`, "good");
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); }
+    else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); }
+    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } }
     else if (e.type === "LEVEL_UP") toast(`Level up — ${e.level}!`, "sys");
+    else if (e.type === "LOOT_GAINED") toast(`Looted ${content.items.get(e.itemId).name}`, "good");
+    else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
+    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); if (e.questId === "q_silence_the_king") victory(); }
+    else if (e.type === "BOSS_DEFEATED") toast("THE HOLLOW KING FALLS.", "good");
     else if (e.type === "PHASE_CHANGED") toast(`${e.phase} settles over the realm`, "");
-    else if (e.type === "RESTED") toast("You rest until the light returns.", "good");
-  }
-}
-function dispatch(cmd) {
-  const r = reduce(world, cmd, content);
-  if (r.ok) describeToast(r.events);
-  return r;
-}
-
-// ---- interaction -----------------------------------------------------------
-function nearMira() {
-  if (!world.player.pos) return false;
-  const dx = world.player.pos.x - MIRA_POS.x, dz = world.player.pos.z - MIRA_POS.z;
-  return Math.hypot(dx, dz) < INTERACT_RANGE;
-}
-function atVaultGate() {
-  return world.player.pos && world.player.pos.x >= DUNGEON_X - 4;
-}
-function questComplete(qid) {
-  const q = world.quests[qid]; if (!q) return false;
-  return content.quests.get(qid).objectives.every((o) => (q.progress[o.id] || 0) >= o.count);
-}
-function talkToMira() {
-  const q1 = world.quests.q_clear_the_hollow, q2 = world.quests.q_silence_the_king;
-  if (!q1) return dispatch({ type: "ACCEPT_QUEST", questId: "q_clear_the_hollow" });
-  if (q1.state === "active" && questComplete("q_clear_the_hollow"))
-    return dispatch({ type: "TURN_IN_QUEST", questId: "q_clear_the_hollow" });
-  if (q1.state === "turnedin" && !q2) return dispatch({ type: "ACCEPT_QUEST", questId: "q_silence_the_king" });
-  toast('"The husks press closer each dusk. The wilderness lies east."', "");
-}
-function interact() {
-  if (nearMira()) return talkToMira();
-  if (atVaultGate()) {
-    world.flags.reachedVault = true; // M1 exit beat
-    toast("The Sunken Vault yawns open before you. (Descent & combat: Milestone 2)", "sys");
-    return;
-  }
-  toast("Nothing to interact with here.", "");
-}
-
-// ---- scene build -----------------------------------------------------------
-const MIRA_POS = { x: 0, z: 6 };
-function tryInitRenderer() {
-  try {
-    const canvas = el("scene");
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.shadowMap.enabled = true;
-    webgl = true;
-  } catch (err) {
-    webgl = false; // headless / no-GL: keep logic loop, skip rendering
-    console.warn("WebGL unavailable, running render spine headless:", err.message);
+    else if (e.type === "RESTED") toast("You rest and recover.", "good");
+    else if (e.type === "RESPAWNED") toast("You wake at the village shrine.", "bad");
   }
 }
 
-function boxZone(x0, x1, color) {
-  const g = new THREE.PlaneGeometry(x1 - x0, 140);
-  const m = new THREE.MeshStandardMaterial({ color, roughness: 1 });
-  const mesh = new THREE.Mesh(g, m);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set((x0 + x1) / 2, 0, 0);
-  mesh.receiveShadow = true;
-  return mesh;
-}
-function box(w, h, d, color, x, y, z, cast = true) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: .9 }));
-  mesh.position.set(x, y, z); mesh.castShadow = cast; mesh.receiveShadow = true;
-  return mesh;
-}
-function cone(r, h, color, x, z) {
-  const mesh = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), new THREE.MeshStandardMaterial({ color, roughness: 1 }));
-  mesh.position.set(x, h / 2, z); mesh.castShadow = true;
-  return mesh;
+// ---------------------------------------------------------------- meshes
+function mat(c, rough = .9) { return new THREE.MeshStandardMaterial({ color: c, roughness: rough }); }
+function box(w, h, d, c, x, y, z, cast = true) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.castShadow = cast && !lowSpec; m.receiveShadow = !lowSpec; return m; }
+function cone(r, h, c, x, z) { const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), mat(c, 1)); m.position.set(x, h / 2, z); m.castShadow = !lowSpec; return m; }
+
+function makeEnemy(typeId, x, z) {
+  const def = content.enemies.get(typeId);
+  const ent = spawnEnemy(world, typeId, zoneFor(x), content);
+  const group = new THREE.Group();
+  const isBoss = def.isBoss;
+  const col = isBoss ? 0x7a1f24 : typeId === "ruin_stalker" ? 0x3a2f44 : 0x37402c;
+  const s = isBoss ? 2.4 : 1;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1 * s, 2 * s, 5, 10), mat(col, .7));
+  body.position.y = 2 * s; body.castShadow = !lowSpec; group.add(body);
+  // health bar (billboarded)
+  const bar = new THREE.Group(); bar.position.y = (isBoss ? 6.4 : 3.4);
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  const fill = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: isBoss ? 0xd2685f : 0xc06a3a }));
+  fill.position.z = 0.01; bar.add(bg); bar.add(fill); group.add(bar);
+  group.position.set(x, 0, z); scene && scene.add(group);
+  const rec = { id: ent.id, typeId, def, group, fill, bar, pos: { x, z }, alive: true, dying: false, dieT: 0, cd: 0, s };
+  enemies.push(rec); byId.set(ent.id, rec); return rec;
 }
 
 function setupScene() {
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x0a0c12, 60, 200);
-  camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 600);
-
-  hemi = new THREE.HemisphereLight(0xbfd4ff, 0x2a2620, 0.85);
-  scene.add(hemi);
+  scene.fog = new THREE.Fog(0x0a0c12, 70, lowSpec ? 170 : 230);
+  camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 700);
+  hemi = new THREE.HemisphereLight(0xbfd4ff, 0x2a2620, 0.85); scene.add(hemi);
   sun = new THREE.DirectionalLight(0xffffff, 1.0);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
-  sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120; sun.shadow.camera.far = 400;
-  scene.add(sun);
-  scene.add(sun.target);
+  if (!lowSpec) { sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); const c = sun.shadow.camera; c.left = -120; c.right = 120; c.top = 120; c.bottom = -120; c.far = 400; }
+  scene.add(sun); scene.add(sun.target);
 
-  scene.add(boxZone(-40, 34, 0x3c4a3a));   // village turf
-  scene.add(boxZone(34, 96, 0x5a4d33));     // wilderness scrub
-  scene.add(boxZone(96, 160, 0x23222b));    // vault approach
+  const zone = (x0, x1, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 150), mat(c, 1)); m.rotation.x = -Math.PI / 2; m.position.x = (x0 + x1) / 2; m.receiveShadow = !lowSpec; scene.add(m); };
+  zone(-44, 34, 0x3c4a3a); zone(34, 96, 0x5a4d33); zone(96, 170, 0x23222b);
 
-  // Village: a few huts + Elder Mira.
-  for (const [x, z] of [[-14, -8], [-20, 6], [-8, 12], [12, -10], [16, 8]]) {
-    scene.add(box(6, 5, 6, 0x6b5b46, x, 2.5, z));
-    scene.add(box(7, 1.4, 7, 0x4a3c2c, x, 5.4, z)); // roof slab
-  }
-  miraMesh = box(1.4, 3, 1.4, 0xcaa24b, MIRA_POS.x, 1.5, MIRA_POS.z);
-  scene.add(miraMesh);
-  const marker = box(0.8, 0.8, 0.8, 0xffe08a, MIRA_POS.x, 4, MIRA_POS.z, false);
-  marker.rotation.y = Math.PI / 4; miraMesh.userData.marker = marker; scene.add(marker);
+  for (const [x, z] of [[-14, -8], [-20, 6], [-8, 12], [12, -10], [16, 8]]) { scene.add(box(6, 5, 6, 0x6b5b46, x, 2.5, z)); scene.add(box(7, 1.4, 7, 0x4a3c2c, x, 5.4, z)); }
+  const mira = box(1.4, 3, 1.4, 0xcaa24b, MIRA_POS.x, 1.5, MIRA_POS.z); scene.add(mira);
+  const mk = box(0.8, 0.8, 0.8, 0xffe08a, MIRA_POS.x, 4, MIRA_POS.z, false); mk.rotation.y = Math.PI / 4; mira.userData.mk = mk; scene.add(mk); scene.userData.mira = mira;
+  for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); }
+  scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, -7)); scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, 7));
+  scene.add(box(14, 3, 3, 0x15161d, VAULT_X, 12, 0)); scene.add(box(7, 9, 1, 0x000000, VAULT_X, 5, 0, false));
 
-  // Wilderness: deterministic scatter of "trees" + a couple of cairns.
-  const trees = [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [46, 22], [62, -24], [84, 20]];
-  for (const [x, z] of trees) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); }
-
-  // The Sunken Vault gate.
-  scene.add(box(3, 12, 3, 0x15161d, DUNGEON_X - 4, 6, -7));
-  scene.add(box(3, 12, 3, 0x15161d, DUNGEON_X - 4, 6, 7));
-  scene.add(box(14, 3, 3, 0x15161d, DUNGEON_X - 4, 12, 0));
-  scene.add(box(7, 9, 1, 0x000000, DUNGEON_X - 4, 5, 0, false)); // dark doorway
-
-  // Player avatar: capsule + a nose box for facing.
   playerMesh = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), new THREE.MeshStandardMaterial({ color: 0xcfd6e6, roughness: .7 }));
-  body.position.y = 2; body.castShadow = true;
-  const nose = box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1);
-  playerMesh.add(body); playerMesh.add(nose);
-  scene.add(playerMesh);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
+  playerMesh.add(body); playerMesh.add(box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1)); playerMesh.userData.body = body; scene.add(playerMesh);
+
+  for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
 }
 
-// ---- day/night -------------------------------------------------------------
+// ---------------------------------------------------------------- day/night
 const SKY = { dawn: 0x46506b, day: 0x8fb6e8, dusk: 0x3b2a3a, night: 0x070810 };
 const SUNC = { dawn: 0xffb27a, day: 0xfff4dc, dusk: 0xff8a5c, night: 0x4a5a86 };
 function applyTimeOfDay() {
-  const m = world.time.minutes, phase = world.time.phase;
-  const ang = (m / 1440) * Math.PI * 2 - Math.PI / 2; // sun arc over the day
-  if (!webgl) return;
+  if (!webgl) return; const m = world.time.minutes, ph = world.time.phase;
+  const ang = (m / 1440) * Math.PI * 2 - Math.PI / 2, day = Math.max(0.04, Math.sin(ang));
   sun.position.set(Math.cos(ang) * 120, Math.max(6, Math.sin(ang) * 120), 40);
   sun.target.position.set(world.player.pos.x, 0, world.player.pos.z);
-  const dayness = Math.max(0.04, Math.sin(ang)); // 0 at night, 1 at noon
-  sun.intensity = phase === "night" ? 0.18 : 0.6 + dayness;
-  sun.color.setHex(SUNC[phase]); hemi.intensity = phase === "night" ? 0.32 : 0.85;
-  const sky = new THREE.Color(SKY[phase]);
-  scene.background = sky; scene.fog.color.copy(sky);
+  sun.intensity = ph === "night" ? 0.18 : 0.6 + day; sun.color.setHex(SUNC[ph]);
+  hemi.intensity = ph === "night" ? 0.32 : 0.85;
+  const sky = new THREE.Color(SKY[ph]); scene.background = sky; scene.fog.color.copy(sky);
 }
 
-// ---- per-frame -------------------------------------------------------------
-function applyMovement(dt) {
+// ---------------------------------------------------------------- combat
+function dist2(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; }
+function nearestEnemy(range) { let best = null, bd = range * range; const p = world.player.pos; for (const e of enemies) { if (!e.alive) continue; const d = dist2(p, e.pos); if (d <= bd) { bd = d; best = e; } } return best; }
+function playerAttack() { if (pAtkCd > 0 || helpOpen || !world.player) return; pAtkCd = feel.playerAttackCooldown; lungeT = 0.18; const t = nearestEnemy(feel.playerReach); if (t) dispatch({ type: "ATTACK", targetId: t.id, retaliate: false }); }
+function useSalve() { const id = countItem(world, "con_greater_salve") > 0 ? "con_greater_salve" : countItem(world, "con_minor_salve") > 0 ? "con_minor_salve" : null; if (id) dispatch({ type: "USE_ITEM", itemId: id }); else toast("No salves left.", ""); }
+function rest() { if (nearestEnemy(feel.aggroRadius)) { toast("Too dangerous to rest here.", "bad"); return; } dispatch({ type: "ADVANCE_TIME", minutes: 480, rest: true }); }
+
+function nearMira() { const p = world.player.pos; return Math.hypot(p.x - MIRA_POS.x, p.z - MIRA_POS.z) < 8; }
+function questComplete(qid) { const q = world.quests[qid]; if (!q) return false; return content.quests.get(qid).objectives.every((o) => (q.progress[o.id] || 0) >= o.count); }
+function talkToMira() {
+  const q1 = world.quests.q_clear_the_hollow, q2 = world.quests.q_silence_the_king;
+  if (!q1) return dispatch({ type: "ACCEPT_QUEST", questId: "q_clear_the_hollow" });
+  if (q1.state === "active" && questComplete("q_clear_the_hollow")) return dispatch({ type: "TURN_IN_QUEST", questId: "q_clear_the_hollow" });
+  if (q1.state === "turnedin" && !q2) return dispatch({ type: "ACCEPT_QUEST", questId: "q_silence_the_king" });
+  if (q2 && q2.state === "active" && world.flags.bossDefeated) return dispatch({ type: "TURN_IN_QUEST", questId: "q_silence_the_king" });
+  toast('"The husks press closer each dusk. The wilderness lies east."', "");
+}
+function interact() {
+  if (helpOpen) return;
+  if (nearMira()) return talkToMira();
+  if (world.player.pos.x >= VAULT_X - 4) { toast("The Vault yawns open. The Hollow King waits deeper east.", "sys"); return; }
+  toast("Nothing to interact with here.", "");
+}
+function victory() { won = true; const h = el("help"); h.classList.add("show"); helpOpen = true; h.querySelector("strong").textContent = "The realm exhales"; h.querySelector(".body").innerHTML = "You created a character, cleared the wilderness, recovered the seal, descended the Sunken Vault, and ended the Hollow King's vigil. The vertical slice is complete — dawn means something again."; h.querySelector("#help-go").textContent = "Play again"; }
+
+// ---------------------------------------------------------------- per-frame
+function movement(dt) {
   let ix = 0, iz = 0;
-  if (keys.has("w")) iz += 1; if (keys.has("s")) iz -= 1;
-  if (keys.has("a")) ix -= 1; if (keys.has("d")) ix += 1;
-  if (!ix && !iz) return;
-  // forward = horizontal direction from camera toward player (where we look)
+  if (keys.has("w")) iz += 1; if (keys.has("s")) iz -= 1; if (keys.has("a")) ix -= 1; if (keys.has("d")) ix += 1;
+  ix += jx; iz += -jy;
+  const len = Math.hypot(ix, iz); if (len < 0.05) return; if (len > 1) { ix /= len; iz /= len; }
   const fwd = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
-  const move = new THREE.Vector3().addScaledVector(fwd, iz).addScaledVector(right, ix);
-  if (move.lengthSq() === 0) return;
-  move.normalize().multiplyScalar(MOVE_SPEED * dt);
-  facing.copy(move).normalize();
-  dispatch({ type: "MOVE", dx: move.x, dz: move.z });
+  const mv = new THREE.Vector3().addScaledVector(fwd, iz).addScaledVector(right, ix);
+  if (mv.lengthSq() === 0) return; mv.normalize().multiplyScalar(feel.moveSpeed * dt);
+  facing.copy(mv).normalize(); dispatch({ type: "MOVE", dx: mv.x, dz: mv.z });
 }
+function syncZone() { const z = zoneFor(world.player.pos.x); if (z !== world.player.location) { dispatch({ type: "TRAVEL", to: z }); toast(`Entering ${ZONE_LABEL[z]}`, "sys"); } }
 
-function syncZone() {
-  const z = zoneFor(world.player.pos.x);
-  if (z !== world.player.location) {
-    dispatch({ type: "TRAVEL", to: z });
-    toast(`Entering ${ZONE_LABEL[z]}`, "sys");
+function updateEnemies(dt) {
+  const p = world.player.pos;
+  if (!bossSpawned && world.quests.q_silence_the_king?.state === "active" && p.x > 96) {
+    makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad");
+  }
+  for (const e of enemies) {
+    if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
+    if (!e.alive) continue;
+    const d = Math.sqrt(dist2(p, e.pos));
+    if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * feel.enemySpeed * dt; e.pos.z += ((p.z - e.pos.z) / d) * feel.enemySpeed * dt; }
+    e.cd -= dt;
+    if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
+    e.group.position.set(e.pos.x, 0, e.pos.z);
+    if (d > 0.1) e.group.rotation.y = Math.atan2(p.x - e.pos.x, p.z - e.pos.z);
+    const ent = world.entities[e.id]; const frac = Math.max(0, ent.hp / e.def.maxHp);
+    e.fill.scale.x = frac; e.fill.position.x = -2 * (1 - frac);
+    if (camera) e.bar.quaternion.copy(camera.quaternion);
   }
 }
-
 function updateCamera() {
-  if (!webgl) return;
-  const p = world.player.pos;
-  playerMesh.position.set(p.x, 0, p.z);
-  playerMesh.rotation.y = Math.atan2(facing.x, facing.z);
-  if (miraMesh.userData.marker) miraMesh.userData.marker.rotation.y += 0.02;
-  const dist = 16;
-  const off = new THREE.Vector3(
-    Math.sin(camYaw) * Math.cos(camPitch),
-    Math.sin(camPitch) + 0.35,
-    Math.cos(camYaw) * Math.cos(camPitch)
-  ).multiplyScalar(dist);
-  camera.position.set(p.x + off.x, Math.max(3, off.y + 3), p.z + off.z);
-  camera.lookAt(p.x, 2, p.z);
+  if (!webgl) return; const p = world.player.pos;
+  playerMesh.position.set(p.x, 0, p.z); playerMesh.rotation.y = Math.atan2(facing.x, facing.z);
+  lungeT = Math.max(0, lungeT - 0.016); playerMesh.userData.body.position.z = lungeT * 6; // lunge on attack
+  const mira = scene.userData.mira; if (mira) mira.userData.mk.rotation.y += 0.02;
+  const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(feel.camDistance);
+  camera.position.set(p.x + off.x, Math.max(3, off.y + feel.camHeight * 0.5), p.z + off.z); camera.lookAt(p.x, 2, p.z);
 }
-
 function updateHud() {
   const p = world.player, t = world.time;
-  const hh = String(Math.floor(t.minutes / 60) % 24).padStart(2, "0");
-  const mm = String(Math.floor(t.minutes % 60)).padStart(2, "0");
-  el("clock").textContent = `${hh}:${mm} · day ${t.day} · ${t.phase}`;
+  el("clock").textContent = `${String(Math.floor(t.minutes / 60) % 24).padStart(2, "0")}:${String(Math.floor(t.minutes % 60)).padStart(2, "0")} · ${t.phase}`;
   el("zone").textContent = ZONE_LABEL[world.player.location] ?? world.player.location;
   el("pname").textContent = p.name; el("plevel").textContent = `Lv ${p.level}`;
-  const fill = el("hpfill"); const pct = Math.round((p.hp / p.maxHp) * 100);
-  fill.style.width = pct + "%"; fill.classList.toggle("low", p.hp < p.maxHp * 0.35);
+  const f = el("hpfill"); f.style.width = Math.round((p.hp / p.maxHp) * 100) + "%"; f.classList.toggle("low", p.hp < p.maxHp * 0.35);
   el("hptext").textContent = `${p.hp} / ${p.maxHp} HP`;
-
-  // active quest tracker
-  const qid = Object.keys(world.quests).find((id) => world.quests[id].state === "active");
-  const qbox = el("quest");
-  if (qid) {
-    const def = content.quests.get(qid), q = world.quests[qid];
-    qbox.innerHTML = `<div class="qname">${def.name}</div>` + def.objectives.map((o) => {
-      const have = Math.min(q.progress[o.id] || 0, o.count), done = have >= o.count;
-      return `<div class="${done ? "obj-done" : "obj-todo"}">• ${o.desc} (${have}/${o.count})</div>`;
-    }).join("");
-  } else qbox.innerHTML = "";
-
+  const qid = Object.keys(world.quests).find((id) => world.quests[id].state === "active"); const qb = el("quest");
+  if (qid) { const def = content.quests.get(qid), q = world.quests[qid]; qb.innerHTML = `<div class="qname">${def.name}</div>` + def.objectives.map((o) => { const h = Math.min(q.progress[o.id] || 0, o.count), dn = h >= o.count; return `<div class="${dn ? "obj-done" : "obj-todo"}">• ${o.desc} (${h}/${o.count})</div>`; }).join(""); } else qb.innerHTML = "";
+  // lock-on target panel
+  const tg = nearestEnemy(feel.lockRange), tp = el("target");
+  if (tg) { const ent = world.entities[tg.id]; tp.classList.add("show"); tp.innerHTML = `<div class="tn"><span class="${tg.def.isBoss ? "boss" : ""}">${tg.def.name}</span><span>${Math.max(0, ent.hp)}/${tg.def.maxHp}</span></div><div class="bar"><span style="width:${Math.max(0, ent.hp / tg.def.maxHp) * 100}%"></span></div>`; } else tp.classList.remove("show");
   const pr = el("prompt");
-  if (nearMira()) { pr.textContent = "Press E — speak with Elder Mira"; pr.classList.add("show"); }
-  else if (atVaultGate()) { pr.textContent = "Press E — approach the Vault gate"; pr.classList.add("show"); }
+  if (nearMira()) { pr.textContent = "✦ Speak with Elder Mira"; pr.classList.add("show"); }
+  else if (world.player.pos.x >= VAULT_X - 4 && !bossSpawned) { pr.textContent = "✦ The Vault gate"; pr.classList.add("show"); }
   else pr.classList.remove("show");
 }
 
 function frame(now) {
-  const dt = Math.min(MAX_DT, (now - lastT) / 1000 || 0); // clamp (memory: lockstep E6)
-  lastT = now;
-  dispatch({ type: "ADVANCE_TIME", minutes: dt * TIME_SCALE });
-  applyMovement(dt);
-  syncZone();
-  applyTimeOfDay();
-  updateCamera();
-  updateHud();
+  const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
+  if (!paused && !won) {
+    if (world.player.hp <= 0) dispatch({ type: "RESPAWN" });
+    dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
+    pAtkCd = Math.max(0, pAtkCd - dt);
+    movement(dt); syncZone(); updateEnemies(dt);
+  }
+  applyTimeOfDay(); updateCamera(); updateHud();
   if (webgl) renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 
-// ---- input -----------------------------------------------------------------
+// ---------------------------------------------------------------- input
 function bindInput() {
-  addEventListener("keydown", (e) => {
-    const k = e.key.toLowerCase();
-    if (k === "e") { if (!keys.has("e")) interact(); keys.add("e"); return; } // edge-gate
-    if (k === "r") { if (!keys.has("r")) dispatch({ type: "ADVANCE_TIME", minutes: 480, rest: true }); keys.add("r"); return; }
-    keys.add(k);
-  });
+  addEventListener("keydown", (e) => { const k = e.key.toLowerCase(); if (k === "e") { if (!keys.has("e")) interact(); keys.add("e"); return; } if (k === "f") { if (!keys.has("f")) useSalve(); keys.add("f"); return; } if (k === "r") { if (!keys.has("r")) rest(); keys.add("r"); return; } if (k === " ") { e.preventDefault(); if (!keys.has(" ")) playerAttack(); keys.add(" "); return; } keys.add(k); });
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
-  let dragging = false, px = 0, py = 0;
-  const canvas = el("scene");
-  canvas.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; });
-  addEventListener("pointerup", () => { dragging = false; });
+
+  const canvas = el("scene"); let lookId = null, lx = 0, ly = 0, stickId = null, srect = null;
+  canvas.addEventListener("pointerdown", (e) => { lookId = e.pointerId; lx = e.clientX; ly = e.clientY; });
   addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    camYaw -= (e.clientX - px) * 0.005; camPitch = Math.max(0.1, Math.min(1.2, camPitch + (e.clientY - py) * 0.004));
-    px = e.clientX; py = e.clientY;
+    if (e.pointerId === stickId) { updateStick(e); return; }
+    if (e.pointerId === lookId) { camYaw -= (e.clientX - lx) * 0.005; camPitch = Math.max(0.12, Math.min(1.2, camPitch + (e.clientY - ly) * 0.004)); lx = e.clientX; ly = e.clientY; }
   });
-  addEventListener("resize", () => {
-    if (!webgl) return;
-    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
+  addEventListener("pointerup", (e) => { if (e.pointerId === lookId) lookId = null; if (e.pointerId === stickId) { stickId = null; jx = jy = 0; el("knob").style.transform = "translate(0,0)"; } });
+
+  const stick = el("stick"), knob = el("knob");
+  function updateStick(e) { const r = srect, cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = e.clientX - cx, dy = e.clientY - cy; const rad = r.width / 2; const m = Math.hypot(dx, dy); if (m > rad) { dx *= rad / m; dy *= rad / m; } jx = dx / rad; jy = dy / rad; knob.style.transform = `translate(${dx}px,${dy}px)`; }
+  stick.addEventListener("pointerdown", (e) => { stickId = e.pointerId; srect = stick.getBoundingClientRect(); updateStick(e); e.preventDefault(); });
+
+  const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); fn(); }); };
+  tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest);
+  el("b-save").onclick = save; el("b-load").onclick = load; el("b-help").onclick = () => { el("help").classList.add("show"); helpOpen = true; };
+  el("help-go").onclick = closeHelp; el("help-x").onclick = closeHelp;
+
+  addEventListener("resize", () => { if (!webgl) return; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+  document.addEventListener("visibilitychange", () => { paused = document.hidden; if (!paused) lastT = performance.now(); });
+  addEventListener("contextmenu", (e) => e.preventDefault());
+}
+function closeHelp() { if (won) { restart(); return; } el("help").classList.remove("show"); helpOpen = false; }
+
+// ---------------------------------------------------------------- save / restart
+function save() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); toast("Game saved.", "sys"); } catch { toast("Save failed.", "bad"); } }
+function load() { const s = localStorage.getItem("eotsr3d"); if (!s) { toast("No save found.", ""); return; } try { world = JSON.parse(s).world; toast("Game loaded. (enemies reset)", "sys"); } catch { toast("Load failed.", "bad"); } }
+function restart() { location.reload(); }
+
+// ---------------------------------------------------------------- perf
+function tryInitRenderer() {
+  try { const canvas = el("scene"); renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowSpec }); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, lowSpec ? feel.lowSpecPixelRatio : feel.desktopPixelRatio)); renderer.setSize(innerWidth, innerHeight); renderer.shadowMap.enabled = !lowSpec; webgl = true; }
+  catch (err) { webgl = false; console.warn("WebGL unavailable, headless logic mode:", err.message); }
 }
 
-// ---- boot ------------------------------------------------------------------
+// ---------------------------------------------------------------- boot
 (async function boot() {
-  if (started) return; started = true; // guard double-init (memory: [vite] global owner)
+  if (started) return; started = true;
+  if (TOUCH) document.body.classList.add("touch");
   try {
-    content = await loadContentBrowser();
+    [content, feel] = await Promise.all([loadContentBrowser(), fetch(new URL("../src/data/feel.json", import.meta.url)).then((r) => r.json())]);
     world = createWorld(Math.floor(Date.now() % 1e9) || 1337);
     dispatch({ type: "CREATE_CHARACTER", archetypeId: "warden" });
-    tryInitRenderer();
-    if (webgl) setupScene();
-    bindInput();
+    tryInitRenderer(); if (webgl) setupScene(); bindInput();
     el("boot").classList.add("hidden");
-
-    // test/debug hook — drives the exact same paths the keyboard does
     window.__game = {
-      get world() { return world; }, get webgl() { return webgl; }, ready: true, zoneFor,
-      move: (dx, dz) => { dispatch({ type: "MOVE", dx, dz }); syncZone(); },
-      advanceMinutes: (m) => dispatch({ type: "ADVANCE_TIME", minutes: m }),
-      interact,
+      get world() { return world; }, get webgl() { return webgl; }, get enemies() { return enemies; }, ready: true, zoneFor, feel,
+      move: (dx, dz) => { dispatch({ type: "MOVE", dx, dz }); syncZone(); }, advanceMinutes: (m) => dispatch({ type: "ADVANCE_TIME", minutes: m }),
+      interact, attack: playerAttack, closeHelp, setJoy: (x, y) => { jx = x; jy = y; },
     };
-    lastT = performance.now();
-    requestAnimationFrame(frame);
-  } catch (err) {
-    const b = el("boot"); b.className = "error"; b.textContent = "Failed to summon the realm: " + err.message;
-    throw err;
-  }
+    lastT = performance.now(); requestAnimationFrame(frame);
+  } catch (err) { const b = el("boot"); b.className = "error"; b.textContent = "Failed to summon the realm: " + err.message; throw err; }
 })();

@@ -1,0 +1,16 @@
+{
+  "_comment": "Game-feel tunables (creativity Sp3). Edit here, not in code — iterate feel without a recompile.",
+  "moveSpeed": 13,
+  "timeScale": 2.2,
+  "camDistance": 15,
+  "camHeight": 7,
+  "aggroRadius": 24,
+  "meleeRange": 5.0,
+  "playerReach": 6.5,
+  "playerAttackCooldown": 0.5,
+  "enemyAttackCooldown": 1.5,
+  "enemySpeed": 7.5,
+  "lockRange": 34,
+  "lowSpecPixelRatio": 1.25,
+  "desktopPixelRatio": 2
+}
