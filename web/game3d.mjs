@@ -331,8 +331,8 @@ function bindInput() {
 
   const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); audioInit(); sfx("ui"); fn(); }); };
   tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest); tap("b-dodge", dodge);
-  addEventListener("gamepadconnected", (e) => { padIndex = e.gamepad.index; document.body.classList.add("pad"); toast("Controller connected: " + (e.gamepad.id.split("(")[0].trim() || "Gamepad"), "sys"); });
-  addEventListener("gamepaddisconnected", (e) => { if (padIndex === e.gamepad.index) { padIndex = null; document.body.classList.remove("pad"); } });
+  addEventListener("gamepadconnected", (e) => { padIndex = e.gamepad.index; document.body.classList.add("pad"); setLegend(); toast("Controller connected: " + (e.gamepad.id.split("(")[0].trim() || "Gamepad"), "sys"); });
+  addEventListener("gamepaddisconnected", (e) => { if (padIndex === e.gamepad.index) { padIndex = null; document.body.classList.remove("pad"); setLegend(); } });
   el("b-menu").onclick = openMenu; el("m-resume").onclick = closeMenu;
   el("b-save").onclick = () => { save(); closeMenu(); };
   el("b-load").onclick = () => { load(); closeMenu(); };
@@ -346,6 +346,23 @@ function bindInput() {
   document.addEventListener("visibilitychange", () => { paused = document.hidden; if (!paused) lastT = performance.now(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
 }
+function setLegend() {
+  const l = el("legend"); if (!l) return;
+  const badge = (c, k, a) => `<span class="lg"><b class="bd ${c}">${k}</b>${a}</span>`;
+  const key = (k, a) => `<span class="lg"><b class="key">${k}</b>${a}</span>`;
+  if (document.body.classList.contains("pad")) {
+    l.innerHTML = key("L-stick", "Move") + key("R-stick", "Look") + badge("a", "A", "Attack") +
+      badge("x", "X", "Talk") + badge("y", "Y", "Heal") + badge("b", "B", "Dodge") +
+      `<span class="lg"><b class="bd pill">RB</b>Attack</span>` + `<span class="lg"><b class="bd pill">☰</b>Menu</span>`;
+    l.classList.remove("hide");
+  } else if (document.body.classList.contains("touch")) {
+    l.classList.add("hide"); // on-screen buttons are labeled
+  } else {
+    l.innerHTML = key("WASD", "Move") + key("Mouse", "Look") + key("Space", "Attack") +
+      key("E", "Talk") + key("F", "Heal") + key("Shift", "Dodge") + key("R", "Rest");
+    l.classList.remove("hide");
+  }
+}
 function closeHelp() { audioInit(); if (won) { restart(); return; } el("help").classList.remove("show", "howto"); helpOpen = false; paused = false; lastT = performance.now(); }
 function openMenu() { el("menu").classList.add("show"); paused = true; }
 function closeMenu() { el("menu").classList.remove("show"); paused = false; lastT = performance.now(); }
@@ -358,7 +375,7 @@ function pollGamepad(dt) {
   const pads = navigator.getGamepads();
   // Actively adopt a pad even if the connect event never fired (Chrome only
   // exposes pads after the first input, and menus need it before gameplay).
-  if (padIndex === null) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { padIndex = i; document.body.classList.add("pad"); break; } }
+  if (padIndex === null) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { padIndex = i; document.body.classList.add("pad"); setLegend(); break; } }
   if (padIndex === null) return;
   const gp = pads[padIndex]; if (!gp) { padIndex = null; document.body.classList.remove("pad"); return; }
   const down = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => down(i) && !prevBtn[i];
@@ -425,7 +442,7 @@ function tryInitRenderer() {
     world = createWorld(seed);
     dispatch({ type: "CREATE_CHARACTER", archetypeId: archetype });
     tryInitRenderer(); if (webgl) setupScene(); bindInput();
-    el("boot").classList.add("hidden");
+    el("boot").classList.add("hidden"); setLegend();
     window.__game = {
       get world() { return world; }, get webgl() { return webgl; }, get enemies() { return enemies; }, ready: true, zoneFor, feel,
       move: (dx, dz) => { dispatch({ type: "MOVE", dx, dz }); syncZone(); }, advanceMinutes: (m) => dispatch({ type: "ADVANCE_TIME", minutes: m }),
