@@ -214,7 +214,7 @@ function movement(dt) {
   if (len < 0.05 && dodgeT <= 0) return;
   if (len > 1) { ix /= len; iz /= len; }
   const fwd = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
-  const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const mv = new THREE.Vector3().addScaledVector(fwd, iz).addScaledVector(right, ix);
   if (mv.lengthSq() === 0) { if (dodgeT > 0) mv.copy(facing); else return; }
   const speed = feel.moveSpeed * (dodgeT > 0 ? 2.6 : 1);
@@ -357,6 +357,7 @@ function pollGamepad(dt) {
   if (padIndex === null || !navigator.getGamepads) return;
   const gp = navigator.getGamepads()[padIndex]; if (!gp) return;
   const down = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => down(i) && !prevBtn[i];
+  if (helpOpen) { if (edge(0) || edge(9)) closeHelp(); for (let i = 0; i < gp.buttons.length; i++) prevBtn[i] = down(i); return; } // A/Start dismiss intro
   if (edge(9)) toggleMenu();                                    // Start → pause menu
   if (!paused && !helpOpen) {
     const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
