@@ -27,6 +27,7 @@ const SPAWNS = [
   { typeId: "husk_wanderer", x: 46, z: -10 }, { typeId: "husk_wanderer", x: 56, z: 9 },
   { typeId: "husk_wanderer", x: 66, z: -12 }, { typeId: "husk_wanderer", x: 76, z: 11 },
   { typeId: "husk_wanderer", x: 86, z: -6 },
+  { typeId: "ruin_hound", x: 52, z: -18 }, { typeId: "ruin_hound", x: 78, z: 18 },
   { typeId: "ruin_stalker", x: 110, z: 7 }, { typeId: "ruin_stalker", x: 124, z: -9 },
   { typeId: "ruin_stalker", x: 136, z: 6 },
 ];
@@ -43,9 +44,17 @@ const byId = new Map();
 const villagers = [];         // ambient wandering NPCs (cosmetic life)
 const treePos = [];           // for event-driven wind
 let windT = 10;
+const loreMotes = [];         // collectible lore fragments (renderer-only flavor)
+const loreCollected = new Set();
+const LORE = [
+  { x: 40, z: 12, text: "“The seal was never stone — it was a promise the living kept for the dead.”" },
+  { x: 70, z: -16, text: "“Husks remember hands. Never a face, only the reaching.”" },
+  { x: 100, z: -6, text: "“The King was crowned to hold one door shut. He never learned to open it.”" },
+  { x: 132, z: 8, text: "“Dawn is not a time here. It is a debt.”" },
+];
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
-let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
+let dodgeCd = 0, dodgeT = 0, stepT = 0, hbT = 0; // dodge cooldown / i-frames / footstep / heartbeat timer
 let gpx = 0, gpy = 0, padIndex = null, gpFocus = 0, navCd = 0; const prevBtn = []; // gamepad
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
@@ -82,6 +91,7 @@ function sfx(kind, pos) {
     case "chatter": noise(0.18, 500, 0.6, 0.012, "bandpass", o); break;                     // faint distant talk
     case "gust": noise(0.9, 380, 0.4, 0.03, "lowpass", o); break;                           // wind rush past player
     case "rustle": noise(0.4, 2600, 0.5, 0.02, "highpass", o); break;                       // leaves at a tree
+    case "heartbeat": beep(55, 0.14, "sine", 0.06); break;                                  // critical-HP thump
   }
 }
 
@@ -98,7 +108,7 @@ function popText(x, y, z, text, cls) {
 function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
 function processEvents(events) {
   for (const e of events) {
-    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit", en && en.pos); }
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) { popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); en.flash = 0.14; } sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
     else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
     else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
@@ -122,7 +132,7 @@ function makeEnemy(typeId, x, z) {
   const ent = spawnEnemy(world, typeId, zoneFor(x), content);
   const group = new THREE.Group();
   const isBoss = def.isBoss;
-  const col = isBoss ? 0x7a1f24 : typeId === "ruin_stalker" ? 0x3a2f44 : 0x37402c;
+  const col = isBoss ? 0x7a1f24 : typeId === "ruin_stalker" ? 0x3a2f44 : typeId === "ruin_hound" ? 0x6b4a2c : 0x37402c;
   const s = isBoss ? 2.4 : 1;
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(1 * s, 2 * s, 5, 10), mat(col, .7));
   body.position.y = 2 * s; body.castShadow = !lowSpec; group.add(body);
@@ -132,7 +142,7 @@ function makeEnemy(typeId, x, z) {
   const fill = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: isBoss ? 0xd2685f : 0xc06a3a }));
   fill.position.z = 0.01; bar.add(bg); bar.add(fill); group.add(bar);
   group.position.set(x, 0, z); scene && scene.add(group);
-  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, alive: true, dying: false, dieT: 0, cd: 0, s };
+  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, home: { x, z }, territory: def.isBoss ? 46 : 0, wasEngaged: false, flash: 0, alive: true, dying: false, dieT: 0, cd: 0, s };
   enemies.push(rec); byId.set(ent.id, rec); return rec;
 }
 
@@ -164,7 +174,19 @@ function setupScene() {
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
   for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
+  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene.add(m); });
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+function updateLore(dt) {
+  const p = world.player.pos;
+  for (const m of loreMotes) {
+    if (loreCollected.has(m.userData.i)) continue;
+    m.rotation.y += dt * 1.5; m.position.y = 1.6 + Math.sin((m.userData.i + windT) * 1.3) * 0.2;
+    if (Math.hypot(p.x - m.position.x, p.z - m.position.z) < 3) {
+      loreCollected.add(m.userData.i); if (scene) scene.remove(m);
+      toast(LORE[m.userData.i].text, "sys"); sfx("loot", { x: m.position.x, z: m.position.z });
+    }
+  }
 }
 
 // ambient wandering villagers (mined: NPC life + spatial chatter)
@@ -267,17 +289,36 @@ function updateEnemies(dt) {
   for (const e of enemies) {
     if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
     if (!e.alive) continue;
+    const ent = world.entities[e.id];
     const d = Math.sqrt(dist2(p, e.pos));
-    if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * feel.enemySpeed * dt; e.pos.z += ((p.z - e.pos.z) / d) * feel.enemySpeed * dt; }
+    // pursuit-ring territory (mined from Dog Park): a guardian disengages and
+    // heals if you flee its ring — makes the boss a committed arena fight.
+    if (e.territory && d > e.territory) {
+      if (e.wasEngaged) { toast(`${e.def.name} returns to its ground, wounds closing…`, "sys"); e.wasEngaged = false; }
+      const hx = e.home.x - e.pos.x, hz = e.home.z - e.pos.z, hd = Math.hypot(hx, hz);
+      if (hd > 0.5) { e.pos.x += (hx / hd) * feel.enemySpeed * dt; e.pos.z += (hz / hd) * feel.enemySpeed * dt; }
+      ent.hp = Math.min(e.def.maxHp, ent.hp + e.def.maxHp * 0.12 * dt);
+      e.group.position.set(e.pos.x, 0, e.pos.z);
+      const fr = Math.max(0, ent.hp / e.def.maxHp); e.fill.scale.x = fr; e.fill.position.x = -2 * (1 - fr);
+      if (camera) e.bar.quaternion.copy(camera.quaternion);
+      continue;
+    }
+    if (e.territory) e.wasEngaged = true;
+    const espd = feel.enemySpeed * (e.def.speedMult || 1);
+    if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * espd * dt; e.pos.z += ((p.z - e.pos.z) / d) * espd * dt; }
     e.cd -= dt;
     if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won && dodgeT <= 0) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
     e.group.position.set(e.pos.x, 0, e.pos.z);
     if (d > 0.1) e.group.rotation.y = Math.atan2(p.x - e.pos.x, p.z - e.pos.z);
-    const ent = world.entities[e.id]; const frac = Math.max(0, ent.hp / e.def.maxHp);
+    const frac = Math.max(0, ent.hp / e.def.maxHp);
     e.fill.scale.x = frac; e.fill.position.x = -2 * (1 - frac);
     if (camera) e.bar.quaternion.copy(camera.quaternion);
-    // boss telegraph: glow red as its strike winds up
-    if (e.def.isBoss && e.body.material.emissive) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
+    // hit-flash (white) takes priority; else boss telegraph (red); else off
+    if (e.body.material.emissive) {
+      if (e.flash > 0) { e.flash -= dt; const w = Math.min(1, e.flash * 7); e.body.material.emissive.setRGB(w, w, w); }
+      else if (e.def.isBoss) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
+      else e.body.material.emissive.setRGB(0, 0, 0);
+    }
   }
 }
 function updateCamera() {
@@ -338,6 +379,15 @@ function updateCompass() {
 const _erred = new Set();
 function safe(label, fn) { try { fn(); } catch (e) { if (!_erred.has(label)) { _erred.add(label); console.error(`[${label}]`, e); } } }
 
+// critical-HP feedback: pulsing red edge + slow heartbeat (mined "juice" habit)
+function lowHpCue(dt) {
+  const p = world.player; if (!p || won || paused) return;
+  if (p.hp > 0 && p.hp < p.maxHp * 0.25) {
+    hbT -= dt; if (hbT <= 0) { sfx("heartbeat"); hbT = 0.9; }
+    if (hurtFlash < 0.15 && webgl) el("vignette").style.opacity = 0.18 + 0.12 * Math.sin(performance.now() / 170);
+  }
+}
+
 function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
   safe("gamepad", () => pollGamepad(dt));
@@ -346,9 +396,9 @@ function frame(now) {
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
     safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
-    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt));
+    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt)); safe("lore", () => updateLore(dt));
   }
-  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
+  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("lowhp", () => lowHpCue(dt)); safe("perf", () => perfGuard(dt));
   if (webgl) safe("render", () => renderer.render(scene, camera));
   requestAnimationFrame(frame);
 }
