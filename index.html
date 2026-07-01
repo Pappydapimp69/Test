@@ -30,17 +30,18 @@
     <div id="toast"></div>
     <div id="dmg"></div>
     <div id="compass"><span id="compass-arrow">▲</span><span id="compass-label"></span></div>
+    <div id="legend"></div>
   </div>
 
   <!-- Touch controls (shown on coarse-pointer devices) -->
   <div id="touch">
     <div id="stick"><div id="knob"></div></div>
     <div id="btns">
-      <button id="b-dodge" class="tbtn small">↻</button>
-      <button id="b-attack" class="tbtn atk">⚔</button>
-      <button id="b-interact" class="tbtn">✦</button>
-      <button id="b-salve" class="tbtn">✚</button>
-      <button id="b-rest" class="tbtn small">⏾</button>
+      <button id="b-dodge" class="tbtn small">Dodge</button>
+      <button id="b-attack" class="tbtn atk">Attack</button>
+      <button id="b-interact" class="tbtn">Talk</button>
+      <button id="b-salve" class="tbtn">Heal</button>
+      <button id="b-rest" class="tbtn small">Rest</button>
     </div>
   </div>
 
@@ -72,8 +73,12 @@
       <kbd>Space</kbd> attack · <kbd>E</kbd> interact · <kbd>F</kbd> salve · <kbd>R</kbd> rest
     </div>
     <div class="keys" data-touch>
-      Left stick to move · drag the right side to look · ⚔ attack · ✦ interact ·
-      ✚ salve · ⏾ rest
+      Left stick to move · drag the right side to look · tap the labeled buttons:
+      Attack · Talk · Heal · Dodge · Rest
+    </div>
+    <div class="keys" data-pad>
+      Left stick move · right stick look · <b>A</b> Attack · <b>X</b> Talk ·
+      <b>Y</b> Heal · <b>B</b> Dodge · <b>RB</b> Attack · <b>☰</b> Menu · D-pad in menus
     </div>
     <div class="note">Prefer a menu-driven version? <a href="./text.html">Play the text slice →</a></div>
     <button id="help-go">Enter the realm</button>
