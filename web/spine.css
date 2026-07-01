@@ -88,6 +88,7 @@ body.pad #touch { display: none !important; } /* gamepad connected → hide on-s
 #help .note { color: var(--muted); font-size: .8rem; text-align: center; margin-top: 10px; }
 #help a { color: var(--accent); }
 #help code { color: var(--ink); }
+#help.howto #arch { display: none; } /* how-to / victory: no class re-select */
 body.touch #help [data-desktop] { display: none; }
 body:not(.touch) #help [data-touch] { display: none; }
 #help-x { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--muted); font-size: 1.3rem; }
