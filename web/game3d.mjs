@@ -132,7 +132,7 @@ function makeEnemy(typeId, x, z) {
   const fill = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: isBoss ? 0xd2685f : 0xc06a3a }));
   fill.position.z = 0.01; bar.add(bg); bar.add(fill); group.add(bar);
   group.position.set(x, 0, z); scene && scene.add(group);
-  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, alive: true, dying: false, dieT: 0, cd: 0, s };
+  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, home: { x, z }, territory: def.isBoss ? 46 : 0, wasEngaged: false, alive: true, dying: false, dieT: 0, cd: 0, s };
   enemies.push(rec); byId.set(ent.id, rec); return rec;
 }
 
@@ -267,13 +267,27 @@ function updateEnemies(dt) {
   for (const e of enemies) {
     if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
     if (!e.alive) continue;
+    const ent = world.entities[e.id];
     const d = Math.sqrt(dist2(p, e.pos));
+    // pursuit-ring territory (mined from Dog Park): a guardian disengages and
+    // heals if you flee its ring — makes the boss a committed arena fight.
+    if (e.territory && d > e.territory) {
+      if (e.wasEngaged) { toast(`${e.def.name} returns to its ground, wounds closing…`, "sys"); e.wasEngaged = false; }
+      const hx = e.home.x - e.pos.x, hz = e.home.z - e.pos.z, hd = Math.hypot(hx, hz);
+      if (hd > 0.5) { e.pos.x += (hx / hd) * feel.enemySpeed * dt; e.pos.z += (hz / hd) * feel.enemySpeed * dt; }
+      ent.hp = Math.min(e.def.maxHp, ent.hp + e.def.maxHp * 0.12 * dt);
+      e.group.position.set(e.pos.x, 0, e.pos.z);
+      const fr = Math.max(0, ent.hp / e.def.maxHp); e.fill.scale.x = fr; e.fill.position.x = -2 * (1 - fr);
+      if (camera) e.bar.quaternion.copy(camera.quaternion);
+      continue;
+    }
+    if (e.territory) e.wasEngaged = true;
     if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * feel.enemySpeed * dt; e.pos.z += ((p.z - e.pos.z) / d) * feel.enemySpeed * dt; }
     e.cd -= dt;
     if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won && dodgeT <= 0) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
     e.group.position.set(e.pos.x, 0, e.pos.z);
     if (d > 0.1) e.group.rotation.y = Math.atan2(p.x - e.pos.x, p.z - e.pos.z);
-    const ent = world.entities[e.id]; const frac = Math.max(0, ent.hp / e.def.maxHp);
+    const frac = Math.max(0, ent.hp / e.def.maxHp);
     e.fill.scale.x = frac; e.fill.position.x = -2 * (1 - frac);
     if (camera) e.bar.quaternion.copy(camera.quaternion);
     // boss telegraph: glow red as its strike winds up
