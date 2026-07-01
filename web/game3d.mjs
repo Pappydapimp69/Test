@@ -54,7 +54,7 @@ const LORE = [
 ];
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
-let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
+let dodgeCd = 0, dodgeT = 0, stepT = 0, hbT = 0; // dodge cooldown / i-frames / footstep / heartbeat timer
 let gpx = 0, gpy = 0, padIndex = null, gpFocus = 0, navCd = 0; const prevBtn = []; // gamepad
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
@@ -91,6 +91,7 @@ function sfx(kind, pos) {
     case "chatter": noise(0.18, 500, 0.6, 0.012, "bandpass", o); break;                     // faint distant talk
     case "gust": noise(0.9, 380, 0.4, 0.03, "lowpass", o); break;                           // wind rush past player
     case "rustle": noise(0.4, 2600, 0.5, 0.02, "highpass", o); break;                       // leaves at a tree
+    case "heartbeat": beep(55, 0.14, "sine", 0.06); break;                                  // critical-HP thump
   }
 }
 
@@ -107,7 +108,7 @@ function popText(x, y, z, text, cls) {
 function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
 function processEvents(events) {
   for (const e of events) {
-    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit", en && en.pos); }
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) { popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); en.flash = 0.14; } sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
     else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
     else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
@@ -141,7 +142,7 @@ function makeEnemy(typeId, x, z) {
   const fill = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ color: isBoss ? 0xd2685f : 0xc06a3a }));
   fill.position.z = 0.01; bar.add(bg); bar.add(fill); group.add(bar);
   group.position.set(x, 0, z); scene && scene.add(group);
-  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, home: { x, z }, territory: def.isBoss ? 46 : 0, wasEngaged: false, alive: true, dying: false, dieT: 0, cd: 0, s };
+  const rec = { id: ent.id, typeId, def, group, fill, bar, body, pos: { x, z }, home: { x, z }, territory: def.isBoss ? 46 : 0, wasEngaged: false, flash: 0, alive: true, dying: false, dieT: 0, cd: 0, s };
   enemies.push(rec); byId.set(ent.id, rec); return rec;
 }
 
@@ -312,8 +313,12 @@ function updateEnemies(dt) {
     const frac = Math.max(0, ent.hp / e.def.maxHp);
     e.fill.scale.x = frac; e.fill.position.x = -2 * (1 - frac);
     if (camera) e.bar.quaternion.copy(camera.quaternion);
-    // boss telegraph: glow red as its strike winds up
-    if (e.def.isBoss && e.body.material.emissive) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
+    // hit-flash (white) takes priority; else boss telegraph (red); else off
+    if (e.body.material.emissive) {
+      if (e.flash > 0) { e.flash -= dt; const w = Math.min(1, e.flash * 7); e.body.material.emissive.setRGB(w, w, w); }
+      else if (e.def.isBoss) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
+      else e.body.material.emissive.setRGB(0, 0, 0);
+    }
   }
 }
 function updateCamera() {
@@ -374,6 +379,15 @@ function updateCompass() {
 const _erred = new Set();
 function safe(label, fn) { try { fn(); } catch (e) { if (!_erred.has(label)) { _erred.add(label); console.error(`[${label}]`, e); } } }
 
+// critical-HP feedback: pulsing red edge + slow heartbeat (mined "juice" habit)
+function lowHpCue(dt) {
+  const p = world.player; if (!p || won || paused) return;
+  if (p.hp > 0 && p.hp < p.maxHp * 0.25) {
+    hbT -= dt; if (hbT <= 0) { sfx("heartbeat"); hbT = 0.9; }
+    if (hurtFlash < 0.15 && webgl) el("vignette").style.opacity = 0.18 + 0.12 * Math.sin(performance.now() / 170);
+  }
+}
+
 function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
   safe("gamepad", () => pollGamepad(dt));
@@ -384,7 +398,7 @@ function frame(now) {
     safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
     safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt)); safe("lore", () => updateLore(dt));
   }
-  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
+  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("lowhp", () => lowHpCue(dt)); safe("perf", () => perfGuard(dt));
   if (webgl) safe("render", () => renderer.render(scene, camera));
   requestAnimationFrame(frame);
 }
