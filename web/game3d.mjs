@@ -298,17 +298,22 @@ function updateCompass() {
   el("compass-label").textContent = t.label;
 }
 
+// Mined from Dog Park 3D: wrap each per-frame subsystem so one fault can't blank
+// the whole frame — contain, log once, keep rendering.
+const _erred = new Set();
+function safe(label, fn) { try { fn(); } catch (e) { if (!_erred.has(label)) { _erred.add(label); console.error(`[${label}]`, e); } } }
+
 function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
-  pollGamepad(dt);
+  safe("gamepad", () => pollGamepad(dt));
   if (!paused && !won) {
     if (world.player.hp <= 0) dispatch({ type: "RESPAWN" });
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
-    movement(dt); syncZone(); updateEnemies(dt);
+    safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
   }
-  applyTimeOfDay(); updateCamera(); updateHud(); updateCompass(); perfGuard(dt);
-  if (webgl) renderer.render(scene, camera);
+  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
+  if (webgl) safe("render", () => renderer.render(scene, camera));
   requestAnimationFrame(frame);
 }
 
