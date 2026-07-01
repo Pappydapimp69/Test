@@ -40,6 +40,9 @@ let seed = 1337, archetype = "warden";
 
 const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dying, dieT, cd, lunge }
 const byId = new Map();
+const villagers = [];         // ambient wandering NPCs (cosmetic life)
+const treePos = [];           // for event-driven wind
+let windT = 10;
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
@@ -76,6 +79,9 @@ function sfx(kind, pos) {
     case "dodge": noise(0.2, 700, 0.5, 0.035); break;                                       // dash
     case "roar": beep(68, 0.5, "sawtooth", 0.06, o); noise(0.5, 150, 0.4, 0.05, "lowpass", o); break;
     case "win": [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, "square", 0.045), i * 150)); break;
+    case "chatter": noise(0.18, 500, 0.6, 0.012, "bandpass", o); break;                     // faint distant talk
+    case "gust": noise(0.9, 380, 0.4, 0.03, "lowpass", o); break;                           // wind rush past player
+    case "rustle": noise(0.4, 2600, 0.5, 0.02, "highpass", o); break;                       // leaves at a tree
   }
 }
 
@@ -145,7 +151,7 @@ function setupScene() {
   for (const [x, z] of [[-14, -8], [-20, 6], [-8, 12], [12, -10], [16, 8]]) { scene.add(box(6, 5, 6, 0x6b5b46, x, 2.5, z)); scene.add(box(7, 1.4, 7, 0x4a3c2c, x, 5.4, z)); }
   const mira = box(1.4, 3, 1.4, 0xcaa24b, MIRA_POS.x, 1.5, MIRA_POS.z); scene.add(mira);
   const mk = box(0.8, 0.8, 0.8, 0xffe08a, MIRA_POS.x, 4, MIRA_POS.z, false); mk.rotation.y = Math.PI / 4; mira.userData.mk = mk; scene.add(mk); scene.userData.mira = mira;
-  for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); }
+  for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); treePos.push({ x, z }); }
   scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, -7)); scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, 7));
   scene.add(box(14, 3, 3, 0x15161d, VAULT_X, 12, 0)); scene.add(box(7, 9, 1, 0x000000, VAULT_X, 5, 0, false));
 
@@ -157,7 +163,31 @@ function setupScene() {
   for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
+  for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+
+// ambient wandering villagers (mined: NPC life + spatial chatter)
+function makeVillager(x, z) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 1.8, 4, 8), mat(0x8a7f6b, .8)); body.position.y = 1.7; body.castShadow = !lowSpec;
+  g.add(body); g.position.set(x, 0, z); scene && scene.add(g);
+  villagers.push({ g, pos: { x, z }, target: { x, z }, chatterT: 3 + Math.random() * 6 });
+}
+function updateVillagers(dt) {
+  for (const v of villagers) {
+    const dx = v.target.x - v.pos.x, dz = v.target.z - v.pos.z, d = Math.hypot(dx, dz);
+    if (d < 1) v.target = { x: -28 + Math.random() * 52, z: -18 + Math.random() * 34 };
+    else { v.pos.x += (dx / d) * 3 * dt; v.pos.z += (dz / d) * 3 * dt; v.g.rotation.y = Math.atan2(dx, dz); }
+    v.g.position.set(v.pos.x, 0, v.pos.z);
+    v.chatterT -= dt; if (v.chatterT <= 0) { sfx("chatter", v.pos); v.chatterT = 7 + Math.random() * 9; }
+  }
+}
+// event-driven wind (mined): a gust sweeps west→east, rustling each tree at its own position
+function updateWind(dt) {
+  windT -= dt; if (windT > 0) return; windT = 16 + Math.random() * 14;
+  sfx("gust", world.player.pos);
+  for (const t of treePos) setTimeout(() => sfx("rustle", t), Math.max(0, (t.x + 44) * 6));
 }
 
 // ---------------------------------------------------------------- perf guard
@@ -316,6 +346,7 @@ function frame(now) {
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
     safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
+    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt));
   }
   safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
   if (webgl) safe("render", () => renderer.render(scene, camera));
