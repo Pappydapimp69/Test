@@ -202,7 +202,7 @@ function interact() {
   if (world.player.pos.x >= VAULT_X - 4) { toast("The Vault yawns open. The Hollow King waits deeper east.", "sys"); return; }
   toast("Nothing to interact with here.", "");
 }
-function victory() { won = true; const h = el("help"); h.classList.add("show"); helpOpen = true; h.querySelector("strong").textContent = "The realm exhales"; h.querySelector(".body").innerHTML = "You created a character, cleared the wilderness, recovered the seal, descended the Sunken Vault, and ended the Hollow King's vigil. The vertical slice is complete — dawn means something again."; h.querySelector("#help-go").textContent = "Play again"; }
+function victory() { won = true; const h = el("help"); h.classList.add("show", "howto"); helpOpen = true; h.querySelector("strong").textContent = "The realm exhales"; h.querySelector(".body").innerHTML = "You created a character, cleared the wilderness, recovered the seal, descended the Sunken Vault, and ended the Hollow King's vigil. The vertical slice is complete — dawn means something again."; h.querySelector("#help-go").textContent = "Play again"; }
 
 // ---------------------------------------------------------------- per-frame
 function movement(dt) {
@@ -337,7 +337,7 @@ function bindInput() {
   el("b-save").onclick = () => { save(); closeMenu(); };
   el("b-load").onclick = () => { load(); closeMenu(); };
   el("m-restart").onclick = restart;
-  el("b-help").onclick = () => { el("menu").classList.remove("show"); el("help").classList.add("show"); helpOpen = true; };
+  el("b-help").onclick = () => { el("menu").classList.remove("show"); el("help").classList.add("show", "howto"); el("help-go").textContent = "Resume"; gpFocus = 0; helpOpen = true; }; // how-to: no class select, resumes game
   el("m-mute").onclick = () => { muted = !muted; el("m-mute").textContent = "Sound: " + (muted ? "Off" : "On"); if (!muted) audioInit(); if (windGain) windGain.gain.value = muted ? 0 : 0.012; };
   el("help-go").onclick = closeHelp; el("help-x").onclick = closeHelp;
   el("arch")?.querySelectorAll(".arch").forEach((b) => b.onclick = () => { el("arch").querySelectorAll(".arch").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); chooseArchetype(b.dataset.arch); });
@@ -346,7 +346,7 @@ function bindInput() {
   document.addEventListener("visibilitychange", () => { paused = document.hidden; if (!paused) lastT = performance.now(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
 }
-function closeHelp() { audioInit(); if (won) { restart(); return; } el("help").classList.remove("show"); helpOpen = false; }
+function closeHelp() { audioInit(); if (won) { restart(); return; } el("help").classList.remove("show", "howto"); helpOpen = false; paused = false; lastT = performance.now(); }
 function openMenu() { el("menu").classList.add("show"); paused = true; }
 function closeMenu() { el("menu").classList.remove("show"); paused = false; lastT = performance.now(); }
 function toggleMenu() { el("menu").classList.contains("show") ? closeMenu() : openMenu(); }
@@ -366,7 +366,7 @@ function pollGamepad(dt) {
   // Menu / start-screen navigation with the D-pad + A
   const ov = el("help").classList.contains("show") ? "help" : el("menu").classList.contains("show") ? "menu" : null;
   if (ov) {
-    const btns = ov === "help" ? [...el("arch").querySelectorAll(".arch"), el("help-go")] : [...el("menu").querySelectorAll(".mbtn")];
+    const btns = ov === "help" ? (el("help").classList.contains("howto") ? [el("help-go")] : [...el("arch").querySelectorAll(".arch"), el("help-go")]) : [...el("menu").querySelectorAll(".mbtn")];
     if (gpFocus >= btns.length) gpFocus = 0;
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
     let nav = 0;
