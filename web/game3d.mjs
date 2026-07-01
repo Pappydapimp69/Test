@@ -40,6 +40,9 @@ let seed = 1337, archetype = "warden";
 
 const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dying, dieT, cd, lunge }
 const byId = new Map();
+const villagers = [];         // ambient wandering NPCs (cosmetic life)
+const treePos = [];           // for event-driven wind
+let windT = 10;
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
@@ -55,23 +58,30 @@ const el = (id) => document.getElementById(id);
 let actx = null, muted = false, noiseBuf = null, windGain = null;
 function audioInit() { if (actx || muted) return; try { actx = new (window.AudioContext || window.webkitAudioContext)(); makeNoise(); startWind(); } catch { actx = null; } }
 function makeNoise() { const n = actx.sampleRate; noiseBuf = actx.createBuffer(1, n, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
-function beep(freq, dur = 0.08, type = "square", gain = 0.045) { if (!actx || muted) return; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
-function noise(dur, freq, q, gain, type = "bandpass") { if (!actx || muted || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = actx.createGain(); s.connect(f); f.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t); s.stop(t + dur); }
+function beep(freq, dur = 0.08, type = "square", gain = 0.045, out) { if (!actx || muted) return; out = out || actx.destination; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(out); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
+function noise(dur, freq, q, gain, type = "bandpass", out) { if (!actx || muted || !noiseBuf) return; out = out || actx.destination; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = actx.createGain(); s.connect(f); f.connect(g); g.connect(out); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t); s.stop(t + dur); }
+// spatial stage (mined from Dog Park): a positional source panned from a world pos.
+function spat(pos) { try { const p = actx.createPanner(); p.panningModel = "HRTF"; p.distanceModel = "inverse"; p.refDistance = 6; p.maxDistance = 90; if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = 1.5; p.positionZ.value = pos.z; } else p.setPosition(pos.x, 1.5, pos.z); p.connect(actx.destination); return p; } catch { return actx.destination; } }
+function syncListener() { if (!actx || !camera) return; try { const L = actx.listener, c = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d); if (L.positionX) { L.positionX.value = c.x; L.positionY.value = c.y; L.positionZ.value = c.z; L.forwardX.value = d.x; L.forwardY.value = d.y; L.forwardZ.value = d.z; L.upY.value = 1; } else { L.setPosition(c.x, c.y, c.z); L.setOrientation(d.x, d.y, d.z, 0, 1, 0); } } catch {} }
 function startWind() { if (!actx || windGain || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420; windGain = actx.createGain(); windGain.gain.value = 0.012; s.connect(f); f.connect(windGain); windGain.connect(actx.destination); s.start(); }
-function sfx(kind) {
+function sfx(kind, pos) {
   if (!actx || muted) return;
+  const o = pos ? spat(pos) : actx.destination; // route spatial sounds through a panner at their world pos
   switch (kind) {
-    case "hit": noise(0.09, 1300, 1.2, 0.06); beep(300, 0.045, "square", 0.02); break;     // metallic impact
-    case "hurt": noise(0.17, 240, 0.7, 0.085, "lowpass"); break;                            // dull thud
+    case "hit": noise(0.09, 1300, 1.2, 0.06, "bandpass", o); beep(300, 0.045, "square", 0.02, o); break; // metallic impact
+    case "hurt": noise(0.17, 240, 0.7, 0.085, "lowpass"); break;                            // dull thud (at listener)
     case "swing": noise(0.12, 1100, 0.5, 0.03, "highpass"); break;                          // blade whoosh
-    case "die": beep(120, 0.22, "sawtooth", 0.045); noise(0.3, 200, 0.5, 0.05, "lowpass"); break;
+    case "die": beep(120, 0.22, "sawtooth", 0.045, o); noise(0.3, 200, 0.5, 0.05, "lowpass", o); break;
     case "loot": beep(660, 0.06, "triangle", 0.04); setTimeout(() => beep(880, 0.07, "triangle", 0.04), 60); break;
     case "level": beep(523, 0.1); setTimeout(() => beep(659, 0.1), 90); setTimeout(() => beep(784, 0.15), 190); break;
     case "ui": beep(440, 0.03, "sine", 0.028); break;
-    case "step": noise(0.05, 170, 0.9, 0.018, "lowpass"); break;                            // footfall
+    case "step": noise(0.05, 170, 0.9, 0.018, "lowpass", o); break;                         // footfall
     case "dodge": noise(0.2, 700, 0.5, 0.035); break;                                       // dash
-    case "roar": beep(68, 0.5, "sawtooth", 0.06); noise(0.5, 150, 0.4, 0.05, "lowpass"); break;
+    case "roar": beep(68, 0.5, "sawtooth", 0.06, o); noise(0.5, 150, 0.4, 0.05, "lowpass", o); break;
     case "win": [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, "square", 0.045), i * 150)); break;
+    case "chatter": noise(0.18, 500, 0.6, 0.012, "bandpass", o); break;                     // faint distant talk
+    case "gust": noise(0.9, 380, 0.4, 0.03, "lowpass", o); break;                           // wind rush past player
+    case "rustle": noise(0.4, 2600, 0.5, 0.02, "highpass", o); break;                       // leaves at a tree
   }
 }
 
@@ -88,9 +98,9 @@ function popText(x, y, z, text, cls) {
 function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
 function processEvents(events) {
   for (const e of events) {
-    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit"); }
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
-    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die"); }
+    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
     else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
     else if (e.type === "LOOT_GAINED") { toast(`Looted ${content.items.get(e.itemId).name}`, "good"); sfx("loot"); }
     else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
@@ -141,7 +151,7 @@ function setupScene() {
   for (const [x, z] of [[-14, -8], [-20, 6], [-8, 12], [12, -10], [16, 8]]) { scene.add(box(6, 5, 6, 0x6b5b46, x, 2.5, z)); scene.add(box(7, 1.4, 7, 0x4a3c2c, x, 5.4, z)); }
   const mira = box(1.4, 3, 1.4, 0xcaa24b, MIRA_POS.x, 1.5, MIRA_POS.z); scene.add(mira);
   const mk = box(0.8, 0.8, 0.8, 0xffe08a, MIRA_POS.x, 4, MIRA_POS.z, false); mk.rotation.y = Math.PI / 4; mira.userData.mk = mk; scene.add(mk); scene.userData.mira = mira;
-  for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); }
+  for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); treePos.push({ x, z }); }
   scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, -7)); scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, 7));
   scene.add(box(14, 3, 3, 0x15161d, VAULT_X, 12, 0)); scene.add(box(7, 9, 1, 0x000000, VAULT_X, 5, 0, false));
 
@@ -153,7 +163,31 @@ function setupScene() {
   for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
+  for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+
+// ambient wandering villagers (mined: NPC life + spatial chatter)
+function makeVillager(x, z) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 1.8, 4, 8), mat(0x8a7f6b, .8)); body.position.y = 1.7; body.castShadow = !lowSpec;
+  g.add(body); g.position.set(x, 0, z); scene && scene.add(g);
+  villagers.push({ g, pos: { x, z }, target: { x, z }, chatterT: 3 + Math.random() * 6 });
+}
+function updateVillagers(dt) {
+  for (const v of villagers) {
+    const dx = v.target.x - v.pos.x, dz = v.target.z - v.pos.z, d = Math.hypot(dx, dz);
+    if (d < 1) v.target = { x: -28 + Math.random() * 52, z: -18 + Math.random() * 34 };
+    else { v.pos.x += (dx / d) * 3 * dt; v.pos.z += (dz / d) * 3 * dt; v.g.rotation.y = Math.atan2(dx, dz); }
+    v.g.position.set(v.pos.x, 0, v.pos.z);
+    v.chatterT -= dt; if (v.chatterT <= 0) { sfx("chatter", v.pos); v.chatterT = 7 + Math.random() * 9; }
+  }
+}
+// event-driven wind (mined): a gust sweeps west→east, rustling each tree at its own position
+function updateWind(dt) {
+  windT -= dt; if (windT > 0) return; windT = 16 + Math.random() * 14;
+  sfx("gust", world.player.pos);
+  for (const t of treePos) setTimeout(() => sfx("rustle", t), Math.max(0, (t.x + 44) * 6));
 }
 
 // ---------------------------------------------------------------- perf guard
@@ -221,14 +255,14 @@ function movement(dt) {
   mv.normalize().multiplyScalar(speed * dt);
   facing.copy(mv).normalize(); dispatch({ type: "MOVE", dx: mv.x, dz: mv.z });
   // footsteps
-  stepT -= dt; if (stepT <= 0 && dodgeT <= 0) { sfx("step"); stepT = 0.34; }
+  stepT -= dt; if (stepT <= 0 && dodgeT <= 0) { sfx("step", world.player.pos); stepT = 0.34; }
 }
 function syncZone() { const z = zoneFor(world.player.pos.x); if (z !== world.player.location) { dispatch({ type: "TRAVEL", to: z }); toast(`Entering ${ZONE_LABEL[z]}`, "sys"); } }
 
 function updateEnemies(dt) {
   const p = world.player.pos;
   if (!bossSpawned && world.quests.q_silence_the_king?.state === "active" && p.x > 96) {
-    makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad"); sfx("roar");
+    const b = makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad"); sfx("roar", b.pos);
   }
   for (const e of enemies) {
     if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
@@ -256,6 +290,7 @@ function updateCamera() {
   let sx = 0, sy = 0;
   if (shakeT > 0) { shakeT = Math.max(0, shakeT - 0.016); const a = shakeT * 2.2; sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a; }
   camera.position.set(p.x + off.x + sx, Math.max(3, off.y + feel.camHeight * 0.5 + sy), p.z + off.z); camera.lookAt(p.x, 2, p.z);
+  syncListener(); // spatial-audio listener follows the camera
   if (hurtFlash > 0) hurtFlash = Math.max(0, hurtFlash - 0.03); el("vignette").style.opacity = hurtFlash;
 }
 function updateHud() {
@@ -298,17 +333,23 @@ function updateCompass() {
   el("compass-label").textContent = t.label;
 }
 
+// Mined from Dog Park 3D: wrap each per-frame subsystem so one fault can't blank
+// the whole frame — contain, log once, keep rendering.
+const _erred = new Set();
+function safe(label, fn) { try { fn(); } catch (e) { if (!_erred.has(label)) { _erred.add(label); console.error(`[${label}]`, e); } } }
+
 function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
-  pollGamepad(dt);
+  safe("gamepad", () => pollGamepad(dt));
   if (!paused && !won) {
     if (world.player.hp <= 0) dispatch({ type: "RESPAWN" });
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
-    movement(dt); syncZone(); updateEnemies(dt);
+    safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
+    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt));
   }
-  applyTimeOfDay(); updateCamera(); updateHud(); updateCompass(); perfGuard(dt);
-  if (webgl) renderer.render(scene, camera);
+  safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
+  if (webgl) safe("render", () => renderer.render(scene, camera));
   requestAnimationFrame(frame);
 }
 

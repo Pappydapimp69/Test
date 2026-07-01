@@ -221,8 +221,11 @@ export function reduce(world, cmd, content) {
       const p = world.player;
       if (!p) return fail("no character");
       if (!p.pos) p.pos = { x: 0, z: 0 };
-      p.pos.x = Math.max(-60, Math.min(160, p.pos.x + (cmd.dx || 0)));
-      p.pos.z = Math.max(-80, Math.min(80, p.pos.z + (cmd.dz || 0)));
+      // isFinite-guard the delta (mined from Dog Park: one NaN poisons pos →
+      // camera → panners → AI). Reject non-finite input at the boundary.
+      const dx = Number.isFinite(cmd.dx) ? cmd.dx : 0, dz = Number.isFinite(cmd.dz) ? cmd.dz : 0;
+      p.pos.x = Math.max(-60, Math.min(160, p.pos.x + dx));
+      p.pos.z = Math.max(-80, Math.min(80, p.pos.z + dz));
       return done();
     }
 
