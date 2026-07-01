@@ -43,7 +43,7 @@ const byId = new Map();
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
-let gpx = 0, gpy = 0, padIndex = null, gpFocus = 0; const prevBtn = []; // gamepad
+let gpx = 0, gpy = 0, padIndex = null, gpFocus = 0, navCd = 0; const prevBtn = []; // gamepad
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
 const facing = new THREE.Vector3(1, 0, 0);
@@ -354,16 +354,26 @@ function toggleMenu() { el("menu").classList.contains("show") ? closeMenu() : op
 // Xbox / standard gamepad (USB or Bluetooth — both surface through the Gamepad API).
 function pollGamepad(dt) {
   gpx = 0; gpy = 0;
-  if (padIndex === null || !navigator.getGamepads) return;
-  const gp = navigator.getGamepads()[padIndex]; if (!gp) return;
+  if (!navigator.getGamepads) return;
+  const pads = navigator.getGamepads();
+  // Actively adopt a pad even if the connect event never fired (Chrome only
+  // exposes pads after the first input, and menus need it before gameplay).
+  if (padIndex === null) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { padIndex = i; document.body.classList.add("pad"); break; } }
+  if (padIndex === null) return;
+  const gp = pads[padIndex]; if (!gp) { padIndex = null; document.body.classList.remove("pad"); return; }
   const down = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => down(i) && !prevBtn[i];
+  if (navCd > 0) navCd -= 0.016;
   // Menu / start-screen navigation with the D-pad + A
   const ov = el("help").classList.contains("show") ? "help" : el("menu").classList.contains("show") ? "menu" : null;
   if (ov) {
     const btns = ov === "help" ? [...el("arch").querySelectorAll(".arch"), el("help-go")] : [...el("menu").querySelectorAll(".mbtn")];
     if (gpFocus >= btns.length) gpFocus = 0;
-    if (edge(13) || edge(15)) gpFocus = (gpFocus + 1) % btns.length;   // down / right
-    if (edge(12) || edge(14)) gpFocus = (gpFocus - 1 + btns.length) % btns.length; // up / left
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    let nav = 0;
+    if (edge(13) || edge(15)) nav = 1;                                  // dpad down/right
+    else if (edge(12) || edge(14)) nav = -1;                            // dpad up/left
+    else if (navCd <= 0 && (Math.abs(ay) > 0.5 || Math.abs(ax) > 0.5)) { nav = (ay || ax) > 0 ? 1 : -1; navCd = 0.22; } // stick
+    if (nav) gpFocus = (gpFocus + nav + btns.length) % btns.length;
     btns.forEach((b, i) => b.classList.toggle("gp-focus", i === gpFocus));
     if (edge(0)) btns[gpFocus] && btns[gpFocus].click();              // A activates
     if (edge(9) && ov === "menu") closeMenu();                        // Start closes pause menu
