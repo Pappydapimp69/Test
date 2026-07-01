@@ -111,10 +111,10 @@ function processEvents(events) {
     if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) { popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); en.flash = 0.14; } sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
     else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
-    else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
+    else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); silentSave(); }
     else if (e.type === "LOOT_GAINED") { toast(`Looted ${content.items.get(e.itemId).name}`, "good"); sfx("loot"); }
     else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
-    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); sfx("win"); if (e.questId === "q_silence_the_king") victory(); }
+    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); sfx("win"); silentSave(); if (e.questId === "q_silence_the_king") victory(); }
     else if (e.type === "BOSS_DEFEATED") toast("THE HOLLOW KING FALLS.", "good");
     else if (e.type === "PHASE_CHANGED") toast(`${e.phase} settles over the realm`, "");
     else if (e.type === "RESTED") toast("You rest and recover.", "good");
@@ -175,9 +175,20 @@ function setupScene() {
   for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
+  spawnWorldEntities();
+}
+// Shared spawn/clear so world rebuilds (archetype switch, load) don't duplicate
+// or orphan entities — fixes: switching class twice duplicated villagers; Load
+// left enemies bound to stale entity ids.
+function spawnWorldEntities() {
   for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
-  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene.add(m); });
+  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene && scene.add(m); });
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+function clearSceneEntities() {
+  for (const e of enemies) if (scene) scene.remove(e.group); enemies.length = 0; byId.clear(); bossSpawned = false;
+  for (const v of villagers) if (scene) scene.remove(v.g); villagers.length = 0;
+  for (const m of loreMotes) if (scene) scene.remove(m); loreMotes.length = 0; loreCollected.clear();
 }
 function updateLore(dt) {
   const p = world.player.pos;
@@ -517,17 +528,17 @@ function pollGamepad(dt) {
 }
 function chooseArchetype(id) {
   if (id === archetype) return; archetype = id;
-  for (const e of enemies) if (scene) scene.remove(e.group);
-  enemies.length = 0; byId.clear(); bossSpawned = false; won = false;
+  clearSceneEntities(); won = false;
   world = createWorld(seed);
   dispatch({ type: "CREATE_CHARACTER", archetypeId: id });
-  for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+  spawnWorldEntities();
   if (playerMesh) playerMesh.userData.body.material.color.setHex(id === "seeker" ? 0xd8b765 : 0xcfd6e6);
 }
 
 // ---------------------------------------------------------------- save / restart
 function save() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); toast("Game saved.", "sys"); } catch { toast("Save failed.", "bad"); } }
-function load() { const s = localStorage.getItem("eotsr3d"); if (!s) { toast("No save found.", ""); return; } try { world = JSON.parse(s).world; toast("Game loaded. (enemies reset)", "sys"); } catch { toast("Load failed.", "bad"); } }
+function silentSave() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); } catch {} }
+function load() { const s = localStorage.getItem("eotsr3d"); if (!s) { toast("No save found.", ""); return; } try { world = JSON.parse(s).world; clearSceneEntities(); spawnWorldEntities(); won = false; toast("Game loaded.", "sys"); } catch { toast("Load failed.", "bad"); } }
 function restart() { location.reload(); }
 
 // ---------------------------------------------------------------- perf
