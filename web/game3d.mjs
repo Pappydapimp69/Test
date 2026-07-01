@@ -55,22 +55,26 @@ const el = (id) => document.getElementById(id);
 let actx = null, muted = false, noiseBuf = null, windGain = null;
 function audioInit() { if (actx || muted) return; try { actx = new (window.AudioContext || window.webkitAudioContext)(); makeNoise(); startWind(); } catch { actx = null; } }
 function makeNoise() { const n = actx.sampleRate; noiseBuf = actx.createBuffer(1, n, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
-function beep(freq, dur = 0.08, type = "square", gain = 0.045) { if (!actx || muted) return; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
-function noise(dur, freq, q, gain, type = "bandpass") { if (!actx || muted || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = actx.createGain(); s.connect(f); f.connect(g); g.connect(actx.destination); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t); s.stop(t + dur); }
+function beep(freq, dur = 0.08, type = "square", gain = 0.045, out) { if (!actx || muted) return; out = out || actx.destination; const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(out); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur); }
+function noise(dur, freq, q, gain, type = "bandpass", out) { if (!actx || muted || !noiseBuf) return; out = out || actx.destination; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = actx.createGain(); s.connect(f); f.connect(g); g.connect(out); const t = actx.currentTime; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t); s.stop(t + dur); }
+// spatial stage (mined from Dog Park): a positional source panned from a world pos.
+function spat(pos) { try { const p = actx.createPanner(); p.panningModel = "HRTF"; p.distanceModel = "inverse"; p.refDistance = 6; p.maxDistance = 90; if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = 1.5; p.positionZ.value = pos.z; } else p.setPosition(pos.x, 1.5, pos.z); p.connect(actx.destination); return p; } catch { return actx.destination; } }
+function syncListener() { if (!actx || !camera) return; try { const L = actx.listener, c = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d); if (L.positionX) { L.positionX.value = c.x; L.positionY.value = c.y; L.positionZ.value = c.z; L.forwardX.value = d.x; L.forwardY.value = d.y; L.forwardZ.value = d.z; L.upY.value = 1; } else { L.setPosition(c.x, c.y, c.z); L.setOrientation(d.x, d.y, d.z, 0, 1, 0); } } catch {} }
 function startWind() { if (!actx || windGain || !noiseBuf) return; const s = actx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420; windGain = actx.createGain(); windGain.gain.value = 0.012; s.connect(f); f.connect(windGain); windGain.connect(actx.destination); s.start(); }
-function sfx(kind) {
+function sfx(kind, pos) {
   if (!actx || muted) return;
+  const o = pos ? spat(pos) : actx.destination; // route spatial sounds through a panner at their world pos
   switch (kind) {
-    case "hit": noise(0.09, 1300, 1.2, 0.06); beep(300, 0.045, "square", 0.02); break;     // metallic impact
-    case "hurt": noise(0.17, 240, 0.7, 0.085, "lowpass"); break;                            // dull thud
+    case "hit": noise(0.09, 1300, 1.2, 0.06, "bandpass", o); beep(300, 0.045, "square", 0.02, o); break; // metallic impact
+    case "hurt": noise(0.17, 240, 0.7, 0.085, "lowpass"); break;                            // dull thud (at listener)
     case "swing": noise(0.12, 1100, 0.5, 0.03, "highpass"); break;                          // blade whoosh
-    case "die": beep(120, 0.22, "sawtooth", 0.045); noise(0.3, 200, 0.5, 0.05, "lowpass"); break;
+    case "die": beep(120, 0.22, "sawtooth", 0.045, o); noise(0.3, 200, 0.5, 0.05, "lowpass", o); break;
     case "loot": beep(660, 0.06, "triangle", 0.04); setTimeout(() => beep(880, 0.07, "triangle", 0.04), 60); break;
     case "level": beep(523, 0.1); setTimeout(() => beep(659, 0.1), 90); setTimeout(() => beep(784, 0.15), 190); break;
     case "ui": beep(440, 0.03, "sine", 0.028); break;
-    case "step": noise(0.05, 170, 0.9, 0.018, "lowpass"); break;                            // footfall
+    case "step": noise(0.05, 170, 0.9, 0.018, "lowpass", o); break;                         // footfall
     case "dodge": noise(0.2, 700, 0.5, 0.035); break;                                       // dash
-    case "roar": beep(68, 0.5, "sawtooth", 0.06); noise(0.5, 150, 0.4, 0.05, "lowpass"); break;
+    case "roar": beep(68, 0.5, "sawtooth", 0.06, o); noise(0.5, 150, 0.4, 0.05, "lowpass", o); break;
     case "win": [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, "square", 0.045), i * 150)); break;
   }
 }
@@ -88,9 +92,9 @@ function popText(x, y, z, text, cls) {
 function dispatch(cmd) { const r = reduce(world, cmd, content); if (r.ok) processEvents(r.events); return r; }
 function processEvents(events) {
   for (const e of events) {
-    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit"); }
+    if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
-    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die"); }
+    else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
     else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
     else if (e.type === "LOOT_GAINED") { toast(`Looted ${content.items.get(e.itemId).name}`, "good"); sfx("loot"); }
     else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
@@ -221,14 +225,14 @@ function movement(dt) {
   mv.normalize().multiplyScalar(speed * dt);
   facing.copy(mv).normalize(); dispatch({ type: "MOVE", dx: mv.x, dz: mv.z });
   // footsteps
-  stepT -= dt; if (stepT <= 0 && dodgeT <= 0) { sfx("step"); stepT = 0.34; }
+  stepT -= dt; if (stepT <= 0 && dodgeT <= 0) { sfx("step", world.player.pos); stepT = 0.34; }
 }
 function syncZone() { const z = zoneFor(world.player.pos.x); if (z !== world.player.location) { dispatch({ type: "TRAVEL", to: z }); toast(`Entering ${ZONE_LABEL[z]}`, "sys"); } }
 
 function updateEnemies(dt) {
   const p = world.player.pos;
   if (!bossSpawned && world.quests.q_silence_the_king?.state === "active" && p.x > 96) {
-    makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad"); sfx("roar");
+    const b = makeEnemy("boss_hollow_king", Math.max(p.x + 26, 144), 0); bossSpawned = true; toast("The Hollow King rises from his throne of ash.", "bad"); sfx("roar", b.pos);
   }
   for (const e of enemies) {
     if (e.dying) { e.dieT += dt; e.group.position.y = -e.dieT * 3; e.group.scale.setScalar(Math.max(0.01, 1 - e.dieT)); if (e.dieT > 1.3 && scene) { scene.remove(e.group); e.dying = false; } continue; }
@@ -256,6 +260,7 @@ function updateCamera() {
   let sx = 0, sy = 0;
   if (shakeT > 0) { shakeT = Math.max(0, shakeT - 0.016); const a = shakeT * 2.2; sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a; }
   camera.position.set(p.x + off.x + sx, Math.max(3, off.y + feel.camHeight * 0.5 + sy), p.z + off.z); camera.lookAt(p.x, 2, p.z);
+  syncListener(); // spatial-audio listener follows the camera
   if (hurtFlash > 0) hurtFlash = Math.max(0, hurtFlash - 0.03); el("vignette").style.opacity = hurtFlash;
 }
 function updateHud() {
