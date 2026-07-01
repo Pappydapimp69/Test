@@ -111,10 +111,10 @@ function processEvents(events) {
     if (e.type === "DAMAGE_DEALT") { const en = byId.get(e.targetId); if (en) { popText(en.pos.x, 4.5, en.pos.z, String(e.dmg), "hit"); en.flash = 0.14; } sfx("hit", en && en.pos); }
     else if (e.type === "DAMAGE_TAKEN") { const p = world.player.pos; popText(p.x, 3.2, p.z, "-" + e.dmg, "hurt"); sfx("hurt"); hurtFlash = 0.5; if (!REDUCED_MOTION) shakeT = 0.25; }
     else if (e.type === "ENTITY_DIED") { const en = byId.get(e.targetId); if (en) { en.alive = false; en.dying = true; en.dieT = 0; } sfx("die", en && en.pos); }
-    else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); }
+    else if (e.type === "LEVEL_UP") { toast(`Level up — ${e.level}!`, "sys"); sfx("level"); silentSave(); }
     else if (e.type === "LOOT_GAINED") { toast(`Looted ${content.items.get(e.itemId).name}`, "good"); sfx("loot"); }
     else if (e.type === "QUEST_ACCEPTED") toast(`Quest — ${content.quests.get(e.questId).name}`, "sys");
-    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); sfx("win"); if (e.questId === "q_silence_the_king") victory(); }
+    else if (e.type === "QUEST_TURNED_IN") { toast(`Quest complete — ${content.quests.get(e.questId).name}`, "good"); sfx("win"); silentSave(); if (e.questId === "q_silence_the_king") victory(); }
     else if (e.type === "BOSS_DEFEATED") toast("THE HOLLOW KING FALLS.", "good");
     else if (e.type === "PHASE_CHANGED") toast(`${e.phase} settles over the realm`, "");
     else if (e.type === "RESTED") toast("You rest and recover.", "good");
@@ -167,15 +167,28 @@ function setupScene() {
 
   playerMesh = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 6, 12), mat(archetype === "seeker" ? 0xd8b765 : 0xcfd6e6, .7)); body.position.y = 2; body.castShadow = !lowSpec;
-  playerMesh.add(body); playerMesh.add(box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1)); playerMesh.userData.body = body; scene.add(playerMesh);
+  playerMesh.add(body); playerMesh.add(box(0.5, 0.5, 1.2, 0x9aa6c4, 0, 2, 1.1)); playerMesh.userData.body = body;
+  const weap = box(0.26, 0.26, 2.4, 0xcfd0d6, 1.05, 2, 0.5, false); playerMesh.add(weap); playerMesh.userData.weapon = weap;
+  scene.add(playerMesh);
 
   // distant silhouettes for depth (cheap, no shadows)
   for (const [x, z, w, h] of [[60, -90, 220, 40], [60, 90, 220, 46], [180, 0, 40, 70], [-90, 0, 36, 50]])
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
+  spawnWorldEntities();
+}
+// Shared spawn/clear so world rebuilds (archetype switch, load) don't duplicate
+// or orphan entities — fixes: switching class twice duplicated villagers; Load
+// left enemies bound to stale entity ids.
+function spawnWorldEntities() {
   for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
-  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene.add(m); });
+  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene && scene.add(m); });
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+function clearSceneEntities() {
+  for (const e of enemies) if (scene) scene.remove(e.group); enemies.length = 0; byId.clear(); bossSpawned = false;
+  for (const v of villagers) if (scene) scene.remove(v.g); villagers.length = 0;
+  for (const m of loreMotes) if (scene) scene.remove(m); loreMotes.length = 0; loreCollected.clear();
 }
 function updateLore(dt) {
   const p = world.player.pos;
@@ -194,15 +207,22 @@ function makeVillager(x, z) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 1.8, 4, 8), mat(0x8a7f6b, .8)); body.position.y = 1.7; body.castShadow = !lowSpec;
   g.add(body); g.position.set(x, 0, z); scene && scene.add(g);
-  villagers.push({ g, pos: { x, z }, target: { x, z }, chatterT: 3 + Math.random() * 6 });
+  villagers.push({ g, pos: { x, z }, target: { x, z }, chatterT: 3 + Math.random() * 6, greetT: 0 });
 }
 function updateVillagers(dt) {
+  const p = world.player.pos;
   for (const v of villagers) {
-    const dx = v.target.x - v.pos.x, dz = v.target.z - v.pos.z, d = Math.hypot(dx, dz);
-    if (d < 1) v.target = { x: -28 + Math.random() * 52, z: -18 + Math.random() * 34 };
-    else { v.pos.x += (dx / d) * 3 * dt; v.pos.z += (dz / d) * 3 * dt; v.g.rotation.y = Math.atan2(dx, dz); }
+    const pd = Math.hypot(p.x - v.pos.x, p.z - v.pos.z);
+    if (pd < 9) { // notice the player: turn to face + greet
+      v.g.rotation.y = Math.atan2(p.x - v.pos.x, p.z - v.pos.z);
+      v.greetT -= dt; if (v.greetT <= 0) { sfx("chatter", v.pos); v.greetT = 4 + Math.random() * 3; }
+    } else {
+      const dx = v.target.x - v.pos.x, dz = v.target.z - v.pos.z, d = Math.hypot(dx, dz);
+      if (d < 1) v.target = { x: -28 + Math.random() * 52, z: -18 + Math.random() * 34 };
+      else { v.pos.x += (dx / d) * 3 * dt; v.pos.z += (dz / d) * 3 * dt; v.g.rotation.y = Math.atan2(dx, dz); }
+      v.chatterT -= dt; if (v.chatterT <= 0) { sfx("chatter", v.pos); v.chatterT = 7 + Math.random() * 9; }
+    }
     v.g.position.set(v.pos.x, 0, v.pos.z);
-    v.chatterT -= dt; if (v.chatterT <= 0) { sfx("chatter", v.pos); v.chatterT = 7 + Math.random() * 9; }
   }
 }
 // event-driven wind (mined): a gust sweeps west→east, rustling each tree at its own position
@@ -304,7 +324,8 @@ function updateEnemies(dt) {
       continue;
     }
     if (e.territory) e.wasEngaged = true;
-    const espd = feel.enemySpeed * (e.def.speedMult || 1);
+    const night = world.time.phase === "night";
+    const espd = feel.enemySpeed * (e.def.speedMult || 1) * (night ? 1.25 : 1); // hunt harder after dark
     if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * espd * dt; e.pos.z += ((p.z - e.pos.z) / d) * espd * dt; }
     e.cd -= dt;
     if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won && dodgeT <= 0) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
@@ -317,7 +338,7 @@ function updateEnemies(dt) {
     if (e.body.material.emissive) {
       if (e.flash > 0) { e.flash -= dt; const w = Math.min(1, e.flash * 7); e.body.material.emissive.setRGB(w, w, w); }
       else if (e.def.isBoss) { const w = e.cd < 0.45 && d < feel.aggroRadius ? (0.45 - Math.max(0, e.cd)) * 1.6 : 0; e.body.material.emissive.setRGB(w, 0, 0); }
-      else e.body.material.emissive.setRGB(0, 0, 0);
+      else e.body.material.emissive.setRGB(night && d < feel.aggroRadius ? 0.3 : 0, 0, 0); // glowing eyes at night
     }
   }
 }
@@ -325,6 +346,9 @@ function updateCamera() {
   if (!webgl) return; const p = world.player.pos;
   playerMesh.position.set(p.x, 0, p.z); playerMesh.rotation.y = Math.atan2(facing.x, facing.z);
   lungeT = Math.max(0, lungeT - 0.016); playerMesh.userData.body.position.z = lungeT * 6; // lunge on attack
+  // reflect the equipped weapon on the avatar (Ember Blade glows after the boss)
+  const wid = world.player.equipped && world.player.equipped.mainhand, wm = playerMesh.userData.weapon;
+  if (wm && wm.userData._wid !== wid) { wm.userData._wid = wid; const ember = wid === "wpn_ember_blade"; wm.material.color.setHex(ember ? 0xff7a3c : wid === "wpn_ruin_dagger" ? 0x9a9aa2 : 0xcfd0d6); if (wm.material.emissive) wm.material.emissive.setHex(ember ? 0x7a2e10 : 0x000000); wm.scale.z = wid === "wpn_ruin_dagger" ? 0.6 : 1; wm.position.z = 0.5 + (wm.scale.z - 1) * -1.2; }
   const mira = scene.userData.mira; if (mira) mira.userData.mk.rotation.y += 0.02;
   const camDist = feel.camDistance * (TOUCH ? 0.9 : 1); // pull in a touch on phones
   const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch) + 0.35, Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(camDist);
@@ -504,17 +528,17 @@ function pollGamepad(dt) {
 }
 function chooseArchetype(id) {
   if (id === archetype) return; archetype = id;
-  for (const e of enemies) if (scene) scene.remove(e.group);
-  enemies.length = 0; byId.clear(); bossSpawned = false; won = false;
+  clearSceneEntities(); won = false;
   world = createWorld(seed);
   dispatch({ type: "CREATE_CHARACTER", archetypeId: id });
-  for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+  spawnWorldEntities();
   if (playerMesh) playerMesh.userData.body.material.color.setHex(id === "seeker" ? 0xd8b765 : 0xcfd6e6);
 }
 
 // ---------------------------------------------------------------- save / restart
 function save() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); toast("Game saved.", "sys"); } catch { toast("Save failed.", "bad"); } }
-function load() { const s = localStorage.getItem("eotsr3d"); if (!s) { toast("No save found.", ""); return; } try { world = JSON.parse(s).world; toast("Game loaded. (enemies reset)", "sys"); } catch { toast("Load failed.", "bad"); } }
+function silentSave() { try { localStorage.setItem("eotsr3d", JSON.stringify({ world })); } catch {} }
+function load() { const s = localStorage.getItem("eotsr3d"); if (!s) { toast("No save found.", ""); return; } try { world = JSON.parse(s).world; clearSceneEntities(); spawnWorldEntities(); won = false; toast("Game loaded.", "sys"); } catch { toast("Load failed.", "bad"); } }
 function restart() { location.reload(); }
 
 // ---------------------------------------------------------------- perf
