@@ -47,8 +47,12 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/
+          cp text.html _site/
           cp -r web _site/web
           cp -r src _site/src
+          # cache-bust the entry + stamp a visible build id (mined: stale module cache
+          # masquerades as a logic bug). Distinct URL per deploy; id is observable.
+          sed -i "s/__BUILD__/${GITHUB_SHA::7}/g" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
