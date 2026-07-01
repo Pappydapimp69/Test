@@ -20,6 +20,7 @@ const MAX_DT = 0.1;
 const ZONE_LABEL = { village_square: "The Village", wilderness: "The Wilderness", dungeon: "The Sunken Vault" };
 function zoneFor(x) { return x >= 96 ? "dungeon" : x >= 34 ? "wilderness" : "village_square"; }
 const MIRA_POS = { x: 0, z: 6 };
+const DORAN_POS = { x: 17, z: 8 };
 const VAULT_X = 104;
 
 // fixed greybox enemy layout (renderer-side homes)
@@ -37,7 +38,7 @@ let renderer = null, scene = null, camera = null, webgl = false;
 let playerMesh = null, sun = null, hemi = null;
 let camYaw = -Math.PI / 2, camPitch = 0.34, lowSpec = TOUCH;
 let lastT = 0, paused = false, started = false, helpOpen = true, won = false;
-let seed = 1337, archetype = "warden";
+let seed = 1337, archetype = "warden", harshMode = false;
 
 const enemies = [];           // { id, typeId, def, group, fill, pos, alive, dying, dieT, cd, lunge }
 const byId = new Map();
@@ -160,6 +161,7 @@ function setupScene() {
 
   for (const [x, z] of [[-14, -8], [-20, 6], [-8, 12], [12, -10], [16, 8]]) { scene.add(box(6, 5, 6, 0x6b5b46, x, 2.5, z)); scene.add(box(7, 1.4, 7, 0x4a3c2c, x, 5.4, z)); }
   const mira = box(1.4, 3, 1.4, 0xcaa24b, MIRA_POS.x, 1.5, MIRA_POS.z); scene.add(mira);
+  scene.add(box(1.4, 3, 1.4, 0x9c6b3a, DORAN_POS.x, 1.5, DORAN_POS.z)); // Doran the smith
   const mk = box(0.8, 0.8, 0.8, 0xffe08a, MIRA_POS.x, 4, MIRA_POS.z, false); mk.rotation.y = Math.PI / 4; mira.userData.mk = mk; scene.add(mk); scene.userData.mira = mira;
   for (const [x, z] of [[42, -14], [50, 10], [58, -6], [66, 16], [72, -18], [80, 4], [88, -10], [62, -24]]) { scene.add(cone(2.4, 9, 0x2f3d2a, x, z)); scene.add(box(1, 3, 1, 0x4a3826, x, 1.5, z)); treePos.push({ x, z }); }
   scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, -7)); scene.add(box(3, 12, 3, 0x15161d, VAULT_X, 6, 7));
@@ -245,7 +247,9 @@ function perfGuard(dt) {
 const SKY = { dawn: 0x46506b, day: 0x8fb6e8, dusk: 0x3b2a3a, night: 0x070810 };
 const SUNC = { dawn: 0xffb27a, day: 0xfff4dc, dusk: 0xff8a5c, night: 0x4a5a86 };
 function applyTimeOfDay() {
-  if (!webgl) return; const m = world.time.minutes, ph = world.time.phase;
+  if (!webgl) return;
+  if (won) { sun.position.set(60, 50, 40); sun.intensity = 1.5; sun.color.setHex(0xffd9a0); hemi.intensity = 1.05; const sky = new THREE.Color(0xf0c98a); scene.background = sky; scene.fog.color.copy(sky); return; } // dawn breaks on victory
+  const m = world.time.minutes, ph = world.time.phase;
   const ang = (m / 1440) * Math.PI * 2 - Math.PI / 2, day = Math.max(0.04, Math.sin(ang));
   sun.position.set(Math.cos(ang) * 120, Math.max(6, Math.sin(ang) * 120), 40);
   sun.target.position.set(world.player.pos.x, 0, world.player.pos.z);
@@ -263,6 +267,14 @@ function useSalve() { const id = countItem(world, "con_greater_salve") > 0 ? "co
 function rest() { if (nearestEnemy(feel.aggroRadius)) { toast("Too dangerous to rest here.", "bad"); return; } dispatch({ type: "ADVANCE_TIME", minutes: 480, rest: true }); }
 
 function nearMira() { const p = world.player.pos; return Math.hypot(p.x - MIRA_POS.x, p.z - MIRA_POS.z) < 8; }
+function nearDoran() { const p = world.player.pos; return Math.hypot(p.x - DORAN_POS.x, p.z - DORAN_POS.z) < 8; }
+function talkToDoran() { // optional, offered-not-assigned: accept freely, ignore freely
+  const q = world.quests.q_smith_bounty;
+  if (!q) { dispatch({ type: "ACCEPT_QUEST", questId: "q_smith_bounty" }); toast('Doran: "Two hound pelts for a Greater Salve — no obligation."', ""); return; }
+  if (q.state === "active" && questComplete("q_smith_bounty")) return dispatch({ type: "TURN_IN_QUEST", questId: "q_smith_bounty" });
+  if (q.state === "active") { toast('Doran: "Still two hounds out there."', ""); return; }
+  toast('Doran: "The forge remembers you kindly."', "");
+}
 function questComplete(qid) { const q = world.quests[qid]; if (!q) return false; return content.quests.get(qid).objectives.every((o) => (q.progress[o.id] || 0) >= o.count); }
 function talkToMira() {
   const q1 = world.quests.q_clear_the_hollow, q2 = world.quests.q_silence_the_king;
@@ -275,6 +287,7 @@ function talkToMira() {
 function interact() {
   if (helpOpen) return;
   if (nearMira()) return talkToMira();
+  if (nearDoran()) return talkToDoran();
   if (world.player.pos.x >= VAULT_X - 4) { toast("The Vault yawns open. The Hollow King waits deeper east.", "sys"); return; }
   toast("Nothing to interact with here.", "");
 }
@@ -369,9 +382,10 @@ function updateHud() {
   if (qid) { const def = content.quests.get(qid), q = world.quests[qid]; qb.innerHTML = `<div class="qname">${def.name}</div>` + def.objectives.map((o) => { const h = Math.min(q.progress[o.id] || 0, o.count), dn = h >= o.count; return `<div class="${dn ? "obj-done" : "obj-todo"}">• ${o.desc} (${h}/${o.count})</div>`; }).join(""); } else qb.innerHTML = "";
   // lock-on target panel
   const tg = nearestEnemy(feel.lockRange), tp = el("target");
-  if (tg) { const ent = world.entities[tg.id]; tp.classList.add("show"); tp.innerHTML = `<div class="tn"><span class="${tg.def.isBoss ? "boss" : ""}">${tg.def.name}</span><span>${Math.max(0, ent.hp)}/${tg.def.maxHp}</span></div><div class="bar"><span style="width:${Math.max(0, ent.hp / tg.def.maxHp) * 100}%"></span></div>`; } else tp.classList.remove("show");
+  if (tg) { const ent = world.entities[tg.id]; const lore = world.player.skills.lore >= 2; tp.classList.add("show"); tp.innerHTML = `<div class="tn"><span class="${tg.def.isBoss ? "boss" : ""}">${tg.def.name}</span><span>${lore ? Math.max(0, ent.hp) + "/" + tg.def.maxHp : "???"}</span></div><div class="bar"><span style="width:${Math.max(0, ent.hp / tg.def.maxHp) * 100}%"></span></div>`; } else tp.classList.remove("show");
   const pr = el("prompt");
   if (nearMira()) { pr.textContent = "✦ Speak with Elder Mira"; pr.classList.add("show"); }
+  else if (nearDoran()) { pr.textContent = "✦ Speak with Doran (optional)"; pr.classList.add("show"); }
   else if (world.player.pos.x >= VAULT_X - 4 && !bossSpawned) { pr.textContent = "✦ The Vault gate"; pr.classList.add("show"); }
   else pr.classList.remove("show");
 }
@@ -416,7 +430,7 @@ function frame(now) {
   const dt = paused ? 0 : Math.min(MAX_DT, (now - lastT) / 1000 || 0); lastT = now;
   safe("gamepad", () => pollGamepad(dt));
   if (!paused && !won) {
-    if (world.player.hp <= 0) dispatch({ type: "RESPAWN" });
+    if (world.player.hp <= 0) dispatch({ type: "RESPAWN", harsh: harshMode });
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
     safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
@@ -454,6 +468,7 @@ function bindInput() {
   el("m-restart").onclick = restart;
   el("b-help").onclick = () => { el("menu").classList.remove("show"); el("help").classList.add("show", "howto"); el("help-go").textContent = "Resume"; gpFocus = 0; helpOpen = true; }; // how-to: no class select, resumes game
   el("m-mute").onclick = () => { muted = !muted; el("m-mute").textContent = "Sound: " + (muted ? "Off" : "On"); if (!muted) audioInit(); if (windGain) windGain.gain.value = muted ? 0 : 0.012; };
+  el("m-stakes").onclick = () => { harshMode = !harshMode; el("m-stakes").textContent = "Stakes: " + (harshMode ? "Harsh (lose XP on death)" : "Gentle"); };
   el("help-go").onclick = closeHelp; el("help-x").onclick = closeHelp;
   el("arch")?.querySelectorAll(".arch").forEach((b) => b.onclick = () => { el("arch").querySelectorAll(".arch").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); chooseArchetype(b.dataset.arch); });
 

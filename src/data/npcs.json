@@ -18,9 +18,12 @@
       "id": "npc_smith_doran",
       "name": "Doran the Smith",
       "location": "village_forge",
-      "givesQuests": [],
+      "givesQuests": ["q_smith_bounty"],
       "dialogue": {
-        "default": ["Bring me husk shards and I'll see what the forge remembers."]
+        "default": ["Bring me husk shards and I'll see what the forge remembers."],
+        "q_smith_bounty.offer": ["Those hounds gnaw my traps to ruin. Two pelts and this Greater Salve is yours — no obligation."],
+        "q_smith_bounty.active": ["Two hounds. The salve's still here when you're done."],
+        "q_smith_bounty.turnin": ["Clean work. The forge remembers you kindly."]
       }
     }
   ]
