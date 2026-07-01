@@ -59,6 +59,8 @@ body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-se
 /* ---- touch controls ---- */
 #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: none; }
 body.touch #touch { display: block; }
+body.pad #touch { display: none !important; } /* gamepad connected → hide on-screen controls */
+.gp-focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 #stick { position: fixed; left: max(18px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid var(--line); pointer-events: auto; }
 #knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(216,183,101,.4); border: 1px solid var(--accent); }
 #btns { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto auto; gap: 12px; pointer-events: auto; align-items: end; }

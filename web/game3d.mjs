@@ -43,7 +43,7 @@ const byId = new Map();
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
-let gpx = 0, gpy = 0, padIndex = null; const prevBtn = []; // gamepad
+let gpx = 0, gpy = 0, padIndex = null, gpFocus = 0; const prevBtn = []; // gamepad
 const keys = new Set();
 let jx = 0, jy = 0;           // joystick vector
 const facing = new THREE.Vector3(1, 0, 0);
@@ -331,8 +331,8 @@ function bindInput() {
 
   const tap = (id, fn) => { const b = el(id); if (b) b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); audioInit(); sfx("ui"); fn(); }); };
   tap("b-attack", playerAttack); tap("b-interact", interact); tap("b-salve", useSalve); tap("b-rest", rest); tap("b-dodge", dodge);
-  addEventListener("gamepadconnected", (e) => { padIndex = e.gamepad.index; toast("Controller connected: " + (e.gamepad.id.split("(")[0].trim() || "Gamepad"), "sys"); });
-  addEventListener("gamepaddisconnected", (e) => { if (padIndex === e.gamepad.index) padIndex = null; });
+  addEventListener("gamepadconnected", (e) => { padIndex = e.gamepad.index; document.body.classList.add("pad"); toast("Controller connected: " + (e.gamepad.id.split("(")[0].trim() || "Gamepad"), "sys"); });
+  addEventListener("gamepaddisconnected", (e) => { if (padIndex === e.gamepad.index) { padIndex = null; document.body.classList.remove("pad"); } });
   el("b-menu").onclick = openMenu; el("m-resume").onclick = closeMenu;
   el("b-save").onclick = () => { save(); closeMenu(); };
   el("b-load").onclick = () => { load(); closeMenu(); };
@@ -357,7 +357,20 @@ function pollGamepad(dt) {
   if (padIndex === null || !navigator.getGamepads) return;
   const gp = navigator.getGamepads()[padIndex]; if (!gp) return;
   const down = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => down(i) && !prevBtn[i];
-  if (helpOpen) { if (edge(0) || edge(9)) closeHelp(); for (let i = 0; i < gp.buttons.length; i++) prevBtn[i] = down(i); return; } // A/Start dismiss intro
+  // Menu / start-screen navigation with the D-pad + A
+  const ov = el("help").classList.contains("show") ? "help" : el("menu").classList.contains("show") ? "menu" : null;
+  if (ov) {
+    const btns = ov === "help" ? [...el("arch").querySelectorAll(".arch"), el("help-go")] : [...el("menu").querySelectorAll(".mbtn")];
+    if (gpFocus >= btns.length) gpFocus = 0;
+    if (edge(13) || edge(15)) gpFocus = (gpFocus + 1) % btns.length;   // down / right
+    if (edge(12) || edge(14)) gpFocus = (gpFocus - 1 + btns.length) % btns.length; // up / left
+    btns.forEach((b, i) => b.classList.toggle("gp-focus", i === gpFocus));
+    if (edge(0)) btns[gpFocus] && btns[gpFocus].click();              // A activates
+    if (edge(9) && ov === "menu") closeMenu();                        // Start closes pause menu
+    for (let i = 0; i < gp.buttons.length; i++) prevBtn[i] = down(i);
+    return;
+  }
+  gpFocus = 0;
   if (edge(9)) toggleMenu();                                    // Start → pause menu
   if (!paused && !helpOpen) {
     const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
