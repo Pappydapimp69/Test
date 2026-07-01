@@ -17,6 +17,13 @@
       ]
     },
     {
+      "id": "ruin_hound", "name": "Ruin Hound", "maxHp": 26, "power": 7, "defense": 1,
+      "xp": 14, "aggressive": true, "isBoss": false, "nightAggroBonus": 5, "speedMult": 1.7,
+      "loot": [
+        { "itemId": "con_minor_salve", "chance": 0.4, "qty": 1 }
+      ]
+    },
+    {
       "id": "boss_hollow_king", "name": "The Hollow King", "maxHp": 260, "power": 22, "defense": 7,
       "xp": 300, "aggressive": true, "isBoss": true, "nightAggroBonus": 0,
       "loot": [

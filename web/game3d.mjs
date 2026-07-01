@@ -27,6 +27,7 @@ const SPAWNS = [
   { typeId: "husk_wanderer", x: 46, z: -10 }, { typeId: "husk_wanderer", x: 56, z: 9 },
   { typeId: "husk_wanderer", x: 66, z: -12 }, { typeId: "husk_wanderer", x: 76, z: 11 },
   { typeId: "husk_wanderer", x: 86, z: -6 },
+  { typeId: "ruin_hound", x: 52, z: -18 }, { typeId: "ruin_hound", x: 78, z: 18 },
   { typeId: "ruin_stalker", x: 110, z: 7 }, { typeId: "ruin_stalker", x: 124, z: -9 },
   { typeId: "ruin_stalker", x: 136, z: 6 },
 ];
@@ -43,6 +44,14 @@ const byId = new Map();
 const villagers = [];         // ambient wandering NPCs (cosmetic life)
 const treePos = [];           // for event-driven wind
 let windT = 10;
+const loreMotes = [];         // collectible lore fragments (renderer-only flavor)
+const loreCollected = new Set();
+const LORE = [
+  { x: 40, z: 12, text: "“The seal was never stone — it was a promise the living kept for the dead.”" },
+  { x: 70, z: -16, text: "“Husks remember hands. Never a face, only the reaching.”" },
+  { x: 100, z: -6, text: "“The King was crowned to hold one door shut. He never learned to open it.”" },
+  { x: 132, z: 8, text: "“Dawn is not a time here. It is a debt.”" },
+];
 let bossSpawned = false;
 let pAtkCd = 0, lungeT = 0, hurtFlash = 0, shakeT = 0;
 let dodgeCd = 0, dodgeT = 0, stepT = 0; // dodge cooldown / active i-frame timer / footstep timer
@@ -122,7 +131,7 @@ function makeEnemy(typeId, x, z) {
   const ent = spawnEnemy(world, typeId, zoneFor(x), content);
   const group = new THREE.Group();
   const isBoss = def.isBoss;
-  const col = isBoss ? 0x7a1f24 : typeId === "ruin_stalker" ? 0x3a2f44 : 0x37402c;
+  const col = isBoss ? 0x7a1f24 : typeId === "ruin_stalker" ? 0x3a2f44 : typeId === "ruin_hound" ? 0x6b4a2c : 0x37402c;
   const s = isBoss ? 2.4 : 1;
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(1 * s, 2 * s, 5, 10), mat(col, .7));
   body.position.y = 2 * s; body.castShadow = !lowSpec; group.add(body);
@@ -164,7 +173,19 @@ function setupScene() {
     scene.add(box(w, h, 8, 0x161821, x, h / 2, z, false));
 
   for (const [x, z] of [[-10, -4], [8, 6], [-4, 10]]) makeVillager(x, z);
+  LORE.forEach((l, i) => { const m = box(0.6, 0.6, 0.6, 0xffe08a, l.x, 1.6, l.z, false); m.userData.i = i; loreMotes.push(m); scene.add(m); });
   for (const s of SPAWNS) makeEnemy(s.typeId, s.x, s.z);
+}
+function updateLore(dt) {
+  const p = world.player.pos;
+  for (const m of loreMotes) {
+    if (loreCollected.has(m.userData.i)) continue;
+    m.rotation.y += dt * 1.5; m.position.y = 1.6 + Math.sin((m.userData.i + windT) * 1.3) * 0.2;
+    if (Math.hypot(p.x - m.position.x, p.z - m.position.z) < 3) {
+      loreCollected.add(m.userData.i); if (scene) scene.remove(m);
+      toast(LORE[m.userData.i].text, "sys"); sfx("loot", { x: m.position.x, z: m.position.z });
+    }
+  }
 }
 
 // ambient wandering villagers (mined: NPC life + spatial chatter)
@@ -282,7 +303,8 @@ function updateEnemies(dt) {
       continue;
     }
     if (e.territory) e.wasEngaged = true;
-    if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * feel.enemySpeed * dt; e.pos.z += ((p.z - e.pos.z) / d) * feel.enemySpeed * dt; }
+    const espd = feel.enemySpeed * (e.def.speedMult || 1);
+    if (d < feel.aggroRadius && d > feel.meleeRange - 0.5) { e.pos.x += ((p.x - e.pos.x) / d) * espd * dt; e.pos.z += ((p.z - e.pos.z) / d) * espd * dt; }
     e.cd -= dt;
     if (d <= feel.meleeRange && e.cd <= 0 && !helpOpen && !won && dodgeT <= 0) { dispatch({ type: "ENEMY_STRIKE", entityId: e.id }); e.cd = feel.enemyAttackCooldown; }
     e.group.position.set(e.pos.x, 0, e.pos.z);
@@ -360,7 +382,7 @@ function frame(now) {
     dispatch({ type: "ADVANCE_TIME", minutes: dt * feel.timeScale });
     pAtkCd = Math.max(0, pAtkCd - dt); dodgeCd = Math.max(0, dodgeCd - dt); dodgeT = Math.max(0, dodgeT - dt);
     safe("movement", () => movement(dt)); safe("zone", () => syncZone()); safe("enemies", () => updateEnemies(dt));
-    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt));
+    safe("villagers", () => updateVillagers(dt)); safe("wind", () => updateWind(dt)); safe("lore", () => updateLore(dt));
   }
   safe("time", applyTimeOfDay); safe("camera", updateCamera); safe("hud", updateHud); safe("compass", updateCompass); safe("perf", () => perfGuard(dt));
   if (webgl) safe("render", () => renderer.render(scene, camera));
