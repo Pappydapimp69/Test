@@ -160,6 +160,11 @@ export function reduce(world, cmd, content) {
       const dmg = rollDamage(world, def.power + nightBonus, effectiveDefense(world, content));
       world.player.hp = Math.max(0, world.player.hp - dmg);
       events.push(logEvent(world, { type: "DAMAGE_TAKEN", dmg, from: e.id }));
+      // Use-based growth (T7 depth): weathering blows trains the guard skill,
+      // which feeds effectiveDefense. Real-time path only — golden replay unaffected.
+      const pl = world.player;
+      pl._guardReps = (pl._guardReps || 0) + 1;
+      if (pl._guardReps % 12 === 0) { pl.skills.guard = (pl.skills.guard || 0) + 1; events.push(logEvent(world, { type: "SKILL_UP", skill: "guard", value: pl.skills.guard })); }
       if (world.player.hp <= 0) {
         world.flags.playerDown = true;
         events.push(logEvent(world, { type: "PLAYER_DOWNED" }));
@@ -206,11 +211,12 @@ export function reduce(world, cmd, content) {
       // Soft death (docs/03): revive at the village with progress intact.
       const p = world.player;
       if (!p) return fail("no character");
+      if (cmd.harsh) p.xp = Math.floor(p.xp * 0.5); // harsh stakes (T5): lose half current-level XP
       p.hp = p.maxHp;
       p.location = "village_square";
       p.pos = { x: 0, z: 0 };
       world.flags.playerDown = false;
-      events.push(logEvent(world, { type: "RESPAWNED" }));
+      events.push(logEvent(world, { type: "RESPAWNED", harsh: !!cmd.harsh }));
       return done();
     }
 

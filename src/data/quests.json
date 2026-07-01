@@ -13,6 +13,17 @@
       "rewards": { "xp": 120, "items": ["con_greater_salve", "key_dungeon_seal"] }
     },
     {
+      "id": "q_smith_bounty",
+      "name": "Doran's Bounty",
+      "giver": "npc_smith_doran",
+      "summary": "Optional. Doran will trade a Greater Salve for two Ruin Hound pelts — take it or leave it.",
+      "prereq": [],
+      "objectives": [
+        { "id": "o_kill_hounds", "type": "kill", "target": "ruin_hound", "count": 2, "desc": "Cull Ruin Hounds" }
+      ],
+      "rewards": { "xp": 60, "items": ["con_greater_salve"] }
+    },
+    {
       "id": "q_silence_the_king",
       "name": "Silence the Hollow King",
       "giver": "npc_elder_mira",
