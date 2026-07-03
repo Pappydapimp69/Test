@@ -44,6 +44,7 @@
   <button id="prev" title="previous chapter">⏮</button>
   <button id="next" title="next chapter">⏭</button>
   <button id="mute" title="sound">🔊</button>
+  <button id="narr" title="narration">🎙</button>
   <span id="scrubwrap"><input id="scrub" type="range" min="0" max="1000" value="0"/><span id="chap"></span></span>
   <span id="time">0:00</span>
 </div>
@@ -518,6 +519,59 @@ const BEATS=[];
   BEATS.sort((a,b)=>a.t-b.t);
 })();
 
+/* ============ the narrator (Web Speech API — the machine reads its own film) ============ */
+let narrOn=true,_voice=null,_voiceTried=false;
+function pickVoice(){ if(_voice||!("speechSynthesis" in window))return _voice;
+  const vs=speechSynthesis.getVoices(); if(!vs.length)return null;
+  const en=vs.filter(v=>/^en/i.test(v.lang));
+  _voice = en.find(v=>/natural/i.test(v.name)) || en.find(v=>/Google US English/i.test(v.name)) ||
+           en.find(v=>/Samantha|Daniel|Karen|Moira|Aria|Guy/i.test(v.name)) || en[0] || vs[0];
+  return _voice; }
+if("speechSynthesis" in window) speechSynthesis.addEventListener?.("voiceschanged",()=>{_voice=null;pickVoice();});
+function narrCancel(){ try{ if("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){}
+  if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.3); }
+function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
+  try{ speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(txt); const v=pickVoice(); if(v)u.voice=v;
+    u.rate=0.97; u.pitch=1.0; u.volume=1;
+    u.onstart=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.14,AC.currentTime,0.15); };   // duck the score
+    u.onend=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.4); };
+    speechSynthesis.speak(u);
+  }catch(e){} }
+const NARR=[];
+(function(){ const nat=(sc,off,txt)=>{ const i=SCENES.findIndex(s=>s.id===sc), F=SCENES[i].dur/(SCENES[i].base||SCENES[i].dur); NARR.push({t:STARTS[i]+off*F,txt}); };
+  nat("cold",0.5,"This is the world we built. A small kingdom, running on a machine.");
+  nat("cold",4.6,"And this is the day the renderer wrote where it should not.");
+  nat("cold",8.2,"Every bug is born small, red, and frightened.");
+  nat("cold",10.5,"Remember this one. In two minutes, it will be holding up a castle.");
+  nat("title",1.0,"The Lesson and the Seed. A short film, by a cognitive architecture. Based on twenty-six true stories.");
+  nat("file",1.5,"Brain caught it before it could bite twice.");
+  nat("file",6.5,"Every pain gets a name, and a card in the library.");
+  nat("file",11.5,"Filed. Most cards sleep forever. This one won't.");
+  nat("nursery",0.8,"Meanwhile, in the idea nursery, twenty-nine seeds lay asleep.");
+  nat("nursery",5.0,"This one is ours. Remember the leaf. It sleeps through everything.");
+  nat("heist",0.6,"Then two strangers arrived, dragging sacks of everything they knew.");
+  nat("heist",5.4,"Fifteen ideas. Ten wounds. Dumped in a single afternoon.");
+  nat("heist",9.2,"The projects were left behind. The knowledge wasn't.");
+  nat("gag",1.0,"The seed, meanwhile, contributed nothing.");
+  nat("retrieve",1.0,"Months later, Brain came looking for something specific.");
+  nat("retrieve",3.6,"Not you. Not you.");
+  nat("retrieve",7.7,"You.");
+  nat("retrieve",11.2,"Wait. Me? I'm a one-character typo! And up it went.");
+  nat("forge",1.0,"The forge. Three cousins answered the summons. Every one of them, a testing scar.");
+  nat("forge",12.8,"Four wounds. One shape. The forge only keeps what generalizes.");
+  nat("wall",1.0,"They set it where the wall had failed.");
+  nat("wall",5.0,"What hurt us now holds the wall. It looks pretty happy about it.");
+  nat("gate",1.9,"After four acts of sleeping, the eyes opened.");
+  nat("gate",4.6,"It knew exactly where it was going. It had always known.");
+  nat("gate",8.5,"A smith named Doran offers you a bounty. If you want it. No pressure.");
+  nat("finale",0.8,"The wall was built from what hurt us.");
+  nat("finale",5.4,"The world inside was built from what we dreamed.");
+  nat("finale",8.4,"Sixty-five ideas. Twenty-six memories. One of them is holding up the wall.");
+  nat("credits",1.2,"Thank you for watching. Cast your vote in the lobby.");
+  NARR.sort((x,y)=>x.t-y.t);
+})();
+
 /* ============ player ============ */
 let T=0,prevPad=null,playing=false,lastMs=0,scrubDrag=false,started=false;
 function sceneAt(t){ let i=SCENES.length-1; for(let j=0;j<SCENES.length;j++) if(t<STARTS[j]+SCENES[j].dur){i=j;break;} return i; }
@@ -533,23 +587,25 @@ function drawFilm(){
 function tick(ms){ const dt=Math.min(0.05,(ms-lastMs)/1000||0); lastMs=ms;
   if(playing&&T<DUR){ const pT=T; T+=dt;
     for(const b of BEATS) if(pT<b.t&&T>=b.t){ try{b.f();}catch(e){} }
+    for(const n of NARR) if(pT<n.t&&T>=n.t) speak(n.txt);
     const i=sceneAt(T), pad=SCENES[i].pad;
     if(pad!==prevPad){ prevPad=pad; try{ chord(PADS[pad]||PADS.title,3.2,0.22,"sine"); }catch(e){} }
     if(SCENES[i].id==="finale"||SCENES[i].id==="credits"){ try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
-    if(T>=DUR){ T=DUR; playing=false; $("play").textContent="↻"; }
+    if(T>=DUR){ T=DUR; playing=false; $("play").textContent="↻"; narrCancel(); }
   }
   drawFilm(); syncUI(); requestAnimationFrame(tick);
 }
 function fmt(t){ const m=(t/60)|0, s=Math.floor(t%60); return m+":"+String(s).padStart(2,"0"); }
 function syncUI(){ $("time").textContent=fmt(T)+" / "+fmt(DUR); if(!scrubDrag)$("scrub").value=Math.round(T/DUR*1000); }
-$("play").onclick=()=>{ if(T>=DUR)T=0; playing=!playing; $("play").textContent=playing?"⏸":"▶"; };
-$("prev").onclick=()=>{ const i=sceneAt(Math.max(0,T-0.5)); T=STARTS[Math.max(0,T-STARTS[i]<1?i-1:i)]; };
-$("next").onclick=()=>{ const i=sceneAt(T); if(i<SCENES.length-1)T=STARTS[i+1]; };
+$("play").onclick=()=>{ if(T>=DUR)T=0; playing=!playing; $("play").textContent=playing?"⏸":"▶"; if(!playing)narrCancel(); };
+$("prev").onclick=()=>{ narrCancel(); const i=sceneAt(Math.max(0,T-0.5)); T=STARTS[Math.max(0,T-STARTS[i]<1?i-1:i)]; };
+$("next").onclick=()=>{ narrCancel(); const i=sceneAt(T); if(i<SCENES.length-1)T=STARTS[i+1]; };
 $("mute").onclick=()=>{ muted=!muted; $("mute").textContent=muted?"🔇":"🔊"; };
-$("scrub").addEventListener("input",e=>{ scrubDrag=true; T=e.target.value/1000*DUR; drawFilm(); });
+$("narr").onclick=()=>{ narrOn=!narrOn; $("narr").style.opacity=narrOn?1:0.4; if(!narrOn)narrCancel(); };
+$("scrub").addEventListener("input",e=>{ scrubDrag=true; narrCancel(); T=e.target.value/1000*DUR; drawFilm(); });
 $("scrub").addEventListener("change",()=>{ scrubDrag=false; });
 STARTS.forEach((s,i)=>{ if(i===0)return; const el=document.createElement("i"); el.style.left=(s/DUR*100)+"%"; $("chap").appendChild(el); });
-$("begin").onclick=()=>{ $("gate").style.display="none"; audioInit(); started=true;
+$("begin").onclick=()=>{ $("gate").style.display="none"; audioInit(); pickVoice(); started=true;
   if(REDUCE){ T=STARTS[STARTS.length-2]; drawFilm(); playing=false; $("play").textContent="▶";
     try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
   else { T=0; playing=true; } };
