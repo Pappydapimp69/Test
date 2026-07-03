@@ -49,7 +49,7 @@
 </div>
 <div id="gate">
   <h1>THE LESSON &amp; THE SEED</h1>
-  <p>a short film by a cognitive architecture · based on 26 true stories · ~2½ min</p>
+  <p>a short film by a cognitive architecture · based on 26 true stories · ~3½ min</p>
   <button id="begin">▶&nbsp;&nbsp;PREMIERE</button>
 </div>
 <script>
@@ -208,7 +208,7 @@ function card(txt,sub,alpha){ apply(); const W=DES_W,H=DES_H;                   
     ctx.fillText(sub,W/2,H*0.66); }
   ctx.globalAlpha=1; }
 function caption(txt,alpha,y){ apply(); ctx.globalAlpha=alpha??1; ctx.textAlign="center";
-  ctx.font="italic 19px Georgia,serif"; ctx.fillStyle=CO.ink;
+  ctx.font="italic 22px Georgia,serif"; ctx.fillStyle=CO.ink;
   ctx.shadowBlur=8; ctx.shadowColor="#000";
   ctx.fillText(txt,DES_W/2,y||DES_H-LBAR-26); ctx.shadowBlur=0; ctx.globalAlpha=1; }
 function fadeIO(u,d,fin,fout){ return Math.min(1,u/(fin||0.5))*Math.min(1,(d-u)/(fout||0.5)); }
@@ -221,7 +221,7 @@ function stars(n,T,sd){ apply(); for(let i=0;i<n;i++){ const x=rnd(i+sd)*DES_W,y
 
 const SCENES=[
 /* ---- 0 · COLD OPEN (13s): the bug happens, in-world ---- */
-{ id:"cold", name:"Cold open", dur:13, pad:"cold", draw(u){
+{ id:"cold", name:"Cold open", dur:18, base:13, pad:"cold", draw(u){
   const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
   bgFill("#0b0e1a","#04050a"); apply();
   ctx.save();                                                        // fake-3D corridor
@@ -250,7 +250,7 @@ const SCENES=[
     card("This is a bug. In two minutes, it will be holding up a castle.","— the narrator, who has seen the ending",fadeIO(u-10.2,2.8,0.4,0.5)); }
 }},
 /* ---- 1 · TITLE (6s) ---- */
-{ id:"title", name:"Title", dur:6, pad:"title", draw(u){
+{ id:"title", name:"Title", dur:8, base:6, pad:"title", draw(u){
   bgFill("#04050a","#04050a"); apply();
   const a=fadeIO(u,6,0.8,0.8), fl=0.92+0.08*Math.random();
   ctx.globalAlpha=a*fl; ctx.textAlign="center";
@@ -263,7 +263,7 @@ const SCENES=[
   ctx.globalAlpha=1;
 }},
 /* ---- 2 · ACT I: THE FILING (16s) ---- */
-{ id:"file", name:"Act I — The Filing", dur:16, pad:"file", draw(u){
+{ id:"file", name:"Act I — The Filing", dur:22, base:16, pad:"file", draw(u){
   bgFill("#0a0912","#04050a");
   apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
   const lx=DES_W*0.42, ly=DES_H*0.66;
@@ -298,7 +298,7 @@ const SCENES=[
   else caption("Filed. Most cards sleep forever. This one won't.",fadeIO(u-11,5,0.6,0.5));
 }},
 /* ---- 3 · ACT II-a: THE NURSERY (9s) ---- */
-{ id:"nursery", name:"Act II — The Nursery", dur:9, pad:"nursery", draw(u){
+{ id:"nursery", name:"Act II — The Nursery", dur:13, base:9, pad:"nursery", draw(u){
   bgFill("#071008","#04050a"); apply();
   ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
   for(let i=0;i<29;i++){ const col=i%8, row=(i/8)|0;                                       // 29 sleeping seeds
@@ -315,7 +315,7 @@ const SCENES=[
   else caption("This one is ours. Remember the leaf. It sleeps through everything.",fadeIO(u-4.5,4.5,0.5,0.5));
 }},
 /* ---- 4 · ACT II-b: THE HEIST (12s) ---- */
-{ id:"heist", name:"Act II — The Heist", dur:12, pad:"heist", draw(u){
+{ id:"heist", name:"Act II — The Heist", dur:17, base:12, pad:"heist", draw(u){
   bgFill("#0a0710","#04050a"); apply();
   for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
     const g=ctx.createRadialGradient(sx,DES_H*0.75,20,sx,DES_H*0.72,220);
@@ -347,11 +347,11 @@ const SCENES=[
   else caption("The projects were left behind. The knowledge wasn't.",fadeIO(u-9,3,0.5,0.5));
 }},
 /* ---- 5 · gag card (4s) ---- */
-{ id:"gag", name:"Intertitle", dur:4, pad:"sleep", draw(u){
+{ id:"gag", name:"Intertitle", dur:6, base:4, pad:"sleep", draw(u){
   card("THE SEED — still asleep. Contributing nothing.","(it will be worth the wait)",fadeIO(u,4,0.5,0.5));
 }},
 /* ---- 6 · ACT III: THE RETRIEVAL (14s) ---- */
-{ id:"retrieve", name:"Act III — The Retrieval", dur:14, pad:"retrieve", draw(u){
+{ id:"retrieve", name:"Act III — The Retrieval", dur:19, base:14, pad:"retrieve", draw(u){
   bgFill("#0a0912","#04050a"); apply();
   for(let i=0;i<4;i++){ const cx=DES_W*(0.2+i*0.2);                                        // library stacks
     ctx.fillStyle="#141826"; ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=1.5;
@@ -379,7 +379,7 @@ const SCENES=[
   }
 }},
 /* ---- 7 · ACT IV: THE COLLISION (16s) ---- */
-{ id:"forge", name:"Act IV — The Collision", dur:16, pad:"forge", draw(u){
+{ id:"forge", name:"Act IV — The Collision", dur:21, base:16, pad:"forge", draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
     ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
@@ -417,7 +417,7 @@ const SCENES=[
     ctx.restore(); }
 }},
 /* ---- 8 · ACT V-a: THE WALL (10s) ---- */
-{ id:"wall", name:"Act V — The Wall", dur:10, pad:"wall", draw(u){
+{ id:"wall", name:"Act V — The Wall", dur:14, base:10, pad:"wall", draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
   const set=eio(clamp01((u-1.2)/1.8));                                                     // gem flies to slot
@@ -430,7 +430,7 @@ const SCENES=[
   else caption("What hurt us now holds the wall. It looks pretty happy about it.",fadeIO(u-4,6,0.5,0.5));
 }},
 /* ---- 9 · ACT V-b: THE GATE (14s) ---- */
-{ id:"gate", name:"Act V — The Gate", dur:14, pad:"gate", draw(u){
+{ id:"gate", name:"Act V — The Gate", dur:19, base:14, pad:"gate", draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
   const walk=eio(clamp01((u-4)/5));
@@ -454,7 +454,7 @@ const SCENES=[
   else caption("A smith named Doran offers you a bounty, if you want it. No pressure.",fadeIO(u-8,6,0.5,0.6));
 }},
 /* ---- 10 · FINALE (11s) ---- */
-{ id:"finale", name:"Finale", dur:11, pad:"finale", draw(u){
+{ id:"finale", name:"Finale", dur:15, base:11, pad:"finale", draw(u){
   const z=eio(clamp01(u/7));                                                               // slow pull-back
   bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
   const s2=mix(2.6,0.85,z);
@@ -475,7 +475,7 @@ const SCENES=[
   else caption("The world inside was built from what we dreamed.",fadeIO(u-5,6,0.5,1.5));
 }},
 /* ---- 11 · CREDITS (34s) ---- */
-{ id:"credits", name:"Credits", dur:34, pad:"credits", draw(u){
+{ id:"credits", name:"Credits", dur:40, base:34, pad:"credits", draw(u){
   bgFill("#04050a","#04050a"); apply(); ctx.textAlign="center";
   const rows=[["≡ CAST — in order of appearance ≡","h"],["",""],
     ["THE LESSON — renderer-mutated-sim-state","b"],["THE SEED — offered-not-assigned","b"],
@@ -501,7 +501,7 @@ const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
 
 /* SFX beats (absolute film time) */
 const BEATS=[];
-(function(){ const at=(sc,off,f)=>BEATS.push({t:STARTS[SCENES.findIndex(s=>s.id===sc)]+off,f});
+(function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc), F=SCENES[i].dur/(SCENES[i].base||SCENES[i].dur); BEATS.push({t:STARTS[i]+off*F,f}); };
   at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("cold",8.1,SFX.pop);
   at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
   at("file",7.2,SFX.thunk); at("file",13.8,SFX.thunk); at("file",5.4,SFX.chime);
@@ -524,7 +524,8 @@ function sceneAt(t){ let i=SCENES.length-1; for(let j=0;j<SCENES.length;j++) if(
 function drawFilm(){
   ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   const i=sceneAt(T), sc=SCENES[i], u=T-STARTS[i];
-  apply(); sc.draw(Math.min(u,sc.dur));
+  const k=(sc.base||sc.dur)/sc.dur;          // scenes stretched for readability; choreography scales with them
+  apply(); sc.draw(Math.min(u,sc.dur)*k);
   grainAndVignette(1); bars();
   apply(); ctx.textAlign="left"; ctx.fillStyle="rgba(184,188,198,.65)"; ctx.font="11px Georgia,serif";
   ctx.fillText(sc.name,16,DES_H-LBAR+30);
