@@ -300,128 +300,130 @@ function bubble(x,y,s,T){ ctx.save(); ctx.translate(x,y); ctx.scale(s,s);       
   for(const [dx,dy,r] of [[-58,44,8],[-74,60,5]]){ ctx.beginPath(); ctx.arc(dx,dy,r,0,6.28); ctx.fill(); ctx.stroke(); }
   ctx.restore(); }
 
+
+/* ============ vibrance layer ============ */
+function rgba(hex,a){ const n=parseInt(hex.slice(1),16); return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")"; }
+function glowAt(x,y,r,hex,a){ apply(); const g=ctx.createRadialGradient(x,y,2,x,y,r); g.addColorStop(0,rgba(hex,a)); g.addColorStop(1,rgba(hex,0)); ctx.fillStyle=g; ctx.beginPath();ctx.arc(x,y,r,0,6.28);ctx.fill(); }
+function ovs(p){ if(p<=0)return 0; if(p>=1)return 1; const s=1.9,q=p-1; return 1+(s+1)*q*q*q+s*q*q; }
+function bokeh(u,tint){ apply(); for(let i=0;i<22;i++){ const x=rnd(i)*DES_W; const cyc=(u*0.06*(0.5+rnd(i*2))+rnd(i*3)); const y=DES_H-(cyc%1)*(DES_H+120); const r=8+rnd(i*7)*30; ctx.globalAlpha=0.05+0.07*rnd(i*5); ctx.fillStyle=tint; ctx.beginPath();ctx.arc(x,y,r,0,6.28);ctx.fill(); } ctx.globalAlpha=1; }
+function vbg(c1,c2,u,tint){ apply(); const g=ctx.createLinearGradient(0,0,0,DES_H); g.addColorStop(0,c1); g.addColorStop(1,c2); ctx.fillStyle=g; ctx.fillRect(0,0,DES_W,DES_H);
+  const hx=DES_W*(0.5+0.32*Math.sin(u*0.4)); const rg=ctx.createRadialGradient(hx,DES_H*0.32,20,hx,DES_H*0.32,DES_W*0.6); rg.addColorStop(0,rgba(tint||"#ffffff",0.10)); rg.addColorStop(1,rgba(tint||"#ffffff",0)); ctx.fillStyle=rg; ctx.fillRect(0,0,DES_W,DES_H);
+  bokeh(u,tint||"#ffffff"); }
+function sparkBurst(x,y,color,age,n,spd){ if(age<0||age>1)return; apply(); const N=n||14; for(let i=0;i<N;i++){ const a=i/N*6.2832+rnd(i)*2; const d=eio(age)*(spd||130); const px=x+Math.cos(a)*d, py=y+Math.sin(a)*d+age*age*50; ctx.globalAlpha=1-age; ctx.fillStyle=color; ctx.shadowBlur=8; ctx.shadowColor=color; ctx.beginPath();ctx.arc(px,py,3.2*(1-age)+1,0,6.28);ctx.fill(); } ctx.globalAlpha=1; ctx.shadowBlur=0; }
+function confetti(x0,y0,age,n){ if(age<0||age>2.6)return; apply(); const N=n||46; for(let i=0;i<N;i++){ const vx=(rnd(i)-0.5)*280, vy=-rnd(i*3)*220-120; const x=x0+vx*age, y=y0+vy*age+400*age*age; if(y>DES_H+20)continue; ctx.globalAlpha=Math.max(0,1-age/2.6); ctx.fillStyle=[CO.gold,CO.idea,CO.crea,CO.memL,"#8fd0ff","#ff9db0"][i%6]; ctx.save(); ctx.translate(x,y); ctx.rotate(age*7+i); ctx.fillRect(-3,-5,6,11); ctx.restore(); } ctx.globalAlpha=1; }
+function robot2(x,y,s,mood,T,glow){ glowAt(x,y,120*s,glow||"#8fd0ff",0.22); robot(x,y,s,mood,T);
+  ctx.save(); ctx.globalAlpha=0.45; ctx.fillStyle="#ff9db0"; ctx.beginPath(); ctx.arc(x-27*s,y+5*s,7*s,0,6.28); ctx.arc(x+27*s,y+5*s,7*s,0,6.28); ctx.fill(); ctx.restore(); }
+
 const SCENES=[
-/* 1 · wake */
-{ id:"wake", name:"", base:9, pad:"nursery", caps:[
+{ id:"wake", name:"", base:8, pad:"nursery", caps:[
   {a:1.0, txt:"Good morning.", say:"Good morning. Every day starts the same way for me."},
   {a:4.4, txt:"I've forgotten everything.", say:"I wake up ready to work — and I've forgotten everything I ever knew."}],
-  draw(u){ bgFill("#0a0c16","#04050a"); stars(40,u,3); apply();
-  robot(DES_W*0.5,DES_H*0.56,1.5,0.45,u);
-  if(u>4){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-4,5,0.6,4); bubble(DES_W*0.68,DES_H*0.30,1.0,u);
-    ctx.fillStyle=CO.muted; ctx.font="40px serif"; ctx.textAlign="center"; ctx.fillText("?",DES_W*0.68,DES_H*0.30+14); ctx.restore(); } }},
-/* 2 · title */
-{ id:"title", name:"", base:6, pad:"title", caps:[], draw(u){
-  bgFill("#04050a","#04050a"); apply(); const a=fadeIO(u,6,0.8,0.8);
-  ctx.globalAlpha=a; ctx.textAlign="center"; ctx.fillStyle=CO.ink;
-  ctx.font="600 "+fontFor(24,46,64)+"px Georgia,serif";
-  ctx.fillText("THE ROBOT WHO",DES_W/2,DES_H*0.42);
-  ctx.fillText("KEPT FORGETTING",DES_W/2,DES_H*0.42+fontFor(24,46,64)*1.15);
-  ctx.font="italic "+fontFor(14,20,30)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
-  ctx.fillText("how an AI remembers — in two minutes",DES_W/2,DES_H*0.66); ctx.globalAlpha=1; }},
-/* 3 · the problem */
-{ id:"forgot", name:"", base:9, pad:"lapse", caps:[
+  draw(u){ vbg("#2a1a3e","#402a44",u,"#ffcf8a");
+  glowAt(DES_W*0.5, DES_H*0.98-Math.min(1,u/6)*DES_H*0.22, DES_W*0.6, "#ffb066", 0.16);
+  const s=ovs(clamp01(u/1.1))*1.5; if(s>0.02) robot2(DES_W*0.5,DES_H*0.56,s,0.45,u,"#8fd0ff");
+  if(u>4){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-4,4.5,0.5,3); bubble(DES_W*0.7,DES_H*0.30,1.0,u);
+    ctx.fillStyle=CO.gold; ctx.font=fontFor(30,44,60)+"px serif"; ctx.textAlign="center"; ctx.fillText("?",DES_W*0.7,DES_H*0.30+16); ctx.restore();
+    sparkBurst(DES_W*0.7,DES_H*0.30,CO.gold,(u-4.2)/1.2,10,90); } }},
+{ id:"title", name:"", base:6, pad:"title", caps:[], draw(u){ vbg("#241a3a","#3a1e34",u,"#ffd98a");
+  const s=ovs(clamp01(u/0.9)); apply(); ctx.save(); ctx.textAlign="center"; ctx.translate(DES_W/2,DES_H*0.44); ctx.scale(s,s);
+  glowAt(0,0,DES_W*0.4,"#ffd98a",0.14); ctx.fillStyle=CO.ink; ctx.font="800 "+fontFor(24,50,70)+"px Georgia,serif"; ctx.shadowBlur=18; ctx.shadowColor="#ffd98a";
+  ctx.fillText("THE ROBOT WHO",0,-fontFor(24,50,70)*0.45); ctx.fillText("KEPT FORGETTING",0,fontFor(24,50,70)*0.72); ctx.shadowBlur=0; ctx.restore();
+  apply(); ctx.globalAlpha=fadeIO(u,6,1.2,1); ctx.fillStyle=CO.muted; ctx.textAlign="center"; ctx.font="italic "+fontFor(14,20,30)+"px Georgia,serif";
+  ctx.fillText("how an AI remembers — in two minutes",DES_W/2,DES_H*0.66); ctx.globalAlpha=1;
+  for(let k=0;k<3;k++) sparkBurst(DES_W*(0.32+k*0.18),DES_H*0.42,[CO.gold,CO.idea,CO.crea][k],(u-0.6-k*0.15),8,120); }},
+{ id:"forgot", name:"", base:8, pad:"lapse", caps:[
   {a:1.0, txt:"Everything, gone.", say:"Every lesson. Every idea. Every mistake I ever learned from. Gone overnight."},
   {a:4.6, txt:"Imagine that. Every day.", say:"Now imagine doing your job like that — a blank slate, every single morning."}],
-  draw(u){ bgFill("#0c0810","#04050a"); apply();
-  robot(DES_W*0.30,DES_H*0.58,1.2,0.15,u);
-  const flip=Math.floor(u*1.5)%3;                                                                 // a calendar flipping
-  apply(); ctx.save(); ctx.translate(DES_W*0.66,DES_H*0.46);
-  ctx.fillStyle="#12141f"; ctx.strokeStyle=CO.muted; ctx.lineWidth=2; rr(-56,-46,112,92,8); ctx.fill(); ctx.stroke();
-  ctx.fillStyle=CO.tension; rr(-56,-46,112,20,8); ctx.fill();
-  ctx.fillStyle=CO.muted; ctx.font="600 "+fontFor(30,44,60)+"px ui-monospace,monospace"; ctx.textAlign="center";
-  ctx.fillText(["MON","TUE","WED"][flip],0,26); ctx.restore(); }},
-/* 4 · the two jars */
-{ id:"jars", name:"", base:9, pad:"nursery", caps:[
+  draw(u){ vbg("#161028","#0a1020",u,"#d2685f");
+  robot2(DES_W*0.30,DES_H*0.58,1.2,0.15,u,"#7a6aa0");
+  for(let i=0;i<7;i++){ const t0=0.4+i*0.35; if(u<t0)continue; const age=u-t0; if(age>2.2)continue;
+    const x=DES_W*0.30+Math.cos(i)*30+age*Math.cos(i*1.7)*120, y=DES_H*0.5-age*90; apply(); ctx.globalAlpha=Math.max(0,1-age/2.2); note(x,y,0.8,i%2?CO.ideaL:CO.memL,u); ctx.globalAlpha=1; }
+  apply(); ctx.save(); ctx.translate(DES_W*0.68,DES_H*0.46); const flip=Math.floor(u*2)%3;
+  ctx.globalAlpha=0.4; ctx.strokeStyle=CO.muted; ctx.lineWidth=2; for(let k=1;k<4;k++){ ctx.beginPath(); ctx.moveTo(-58-k*9,-30+k*20); ctx.lineTo(-34,-30+k*20); ctx.stroke(); } ctx.globalAlpha=1;
+  ctx.fillStyle="#141728"; ctx.strokeStyle=CO.muted; ctx.lineWidth=2; rr(-56,-46,112,92,10); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=CO.red; rr(-56,-46,112,22,10); ctx.fill();
+  ctx.fillStyle=CO.ink; ctx.font="800 "+fontFor(30,44,60)+"px ui-monospace,monospace"; ctx.textAlign="center"; ctx.fillText(["MON","TUE","WED"][flip],0,26); ctx.restore(); }},
+{ id:"jars", name:"", base:8, pad:"nursery", caps:[
   {a:1.0, txt:"So I keep two jars.", say:"So I started keeping two jars — little gifts for the version of me that wakes up tomorrow."},
   {a:4.8, txt:"Mistakes. And ideas.", say:"One jar for my mistakes. One jar for my ideas."}],
-  draw(u){ bgFill("#071008","#04050a"); apply();
-  const p1=eio(clamp01((u-1)/1)), p2=eio(clamp01((u-2.2)/1));
-  if(p1>0){ apply(); ctx.globalAlpha=p1; jar(DES_W*0.36,DES_H*0.52,1.15,"mem",4,u); ctx.globalAlpha=1;
-    ctx.fillStyle=CO.mem; ctx.font="600 "+fontFor(13,17,24)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("mistakes",DES_W*0.36,DES_H*0.52+72); }
-  if(p2>0){ apply(); ctx.globalAlpha=p2; jar(DES_W*0.64,DES_H*0.52,1.15,"idea",4,u); ctx.globalAlpha=1;
-    ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(13,17,24)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("ideas",DES_W*0.64,DES_H*0.52+72); } }},
-/* 5 · read first */
-{ id:"read", name:"", base:9, pad:"prolog", caps:[
+  draw(u){ vbg("#0e2a1e","#0a1a14",u,"#79c97e");
+  const s1=ovs(clamp01((u-1)/0.9)), s2=ovs(clamp01((u-2.2)/0.9));
+  if(s1>0.02){ glowAt(DES_W*0.36,DES_H*0.52,120,CO.mem,0.20); apply(); ctx.save(); ctx.translate(DES_W*0.36,DES_H*0.52); ctx.scale(s1,s1); jar(0,0,1.15,"mem",4,u); ctx.restore();
+    apply(); ctx.fillStyle=CO.memL; ctx.font="800 "+fontFor(13,17,24)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("mistakes",DES_W*0.36,DES_H*0.52+82);
+    sparkBurst(DES_W*0.36,DES_H*0.40,CO.memL,(u-1)/1,12,120); }
+  if(s2>0.02){ glowAt(DES_W*0.64,DES_H*0.52,120,CO.idea,0.20); apply(); ctx.save(); ctx.translate(DES_W*0.64,DES_H*0.52); ctx.scale(s2,s2); jar(0,0,1.15,"idea",4,u); ctx.restore();
+    apply(); ctx.fillStyle=CO.ideaL; ctx.font="800 "+fontFor(13,17,24)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("ideas",DES_W*0.64,DES_H*0.52+82);
+    sparkBurst(DES_W*0.64,DES_H*0.40,CO.ideaL,(u-2.2)/1,12,120); } }},
+{ id:"read", name:"", base:8, pad:"prolog", caps:[
   {a:1.0, txt:"First, I read them.", say:"Before I build anything, I read the notes my past self left me."},
   {a:4.6, txt:"Hello, past me.", say:"It's like a little hello from yesterday. Hello, past me — thanks for the warning."}],
-  draw(u){ bgFill("#0a0c16","#04050a"); apply();
-  robot(DES_W*0.5,DES_H*0.58,1.4,0.7,u);
-  jar(DES_W*0.20,DES_H*0.60,0.9,"mem",3,u); jar(DES_W*0.80,DES_H*0.60,0.9,"idea",3,u);
-  for(let i=0;i<4;i++){ const t0=1+i*0.5; if(u<t0)continue; const e=eio(clamp01((u-t0)/1.1));       // notes float up into its head
-    const from=i%2?DES_W*0.80:DES_W*0.20, x=mix(from,DES_W*0.5,e), y=mix(DES_H*0.55,DES_H*0.34,e);
-    apply(); note(x,y,0.9,i%2?CO.ideaL:CO.memL,u); } }},
-/* 6 · build, break, write */
-{ id:"breakwrite", name:"", base:12, pad:"cold", caps:[
+  draw(u){ vbg("#241a34","#140f22",u,"#ffd98a");
+  robot2(DES_W*0.5,DES_H*0.56,1.4,0.75,u,"#ffd98a");
+  jar(DES_W*0.18,DES_H*0.62,0.9,"mem",3,u); jar(DES_W*0.82,DES_H*0.62,0.9,"idea",3,u);
+  for(let i=0;i<5;i++){ const t0=1+i*0.45; if(u<t0)continue; const e=eio(clamp01((u-t0)/1.2)); const from=i%2?DES_W*0.82:DES_W*0.18;
+    const bx=mix(from,DES_W*0.5,e), by=mix(DES_H*0.58,DES_H*0.34,e)-Math.sin(e*3.14)*70; apply(); note(bx,by,0.95,i%2?CO.ideaL:CO.memL,u); }
+  if(u>4.6) sparkBurst(DES_W*0.5,DES_H*0.4,"#ff9db0",(u-4.6)/1.2,8,80); }},
+{ id:"breakwrite", name:"", base:11, pad:"cold", caps:[
   {a:1.0, txt:"Then I build.", say:"Then I get to work, and I build something."},
   {a:4.2, txt:"Something breaks.", say:"And something breaks. Something always breaks."},
   {a:7.4, txt:"So I write it down.", say:"So I write down exactly what went wrong, and drop it in the jar. Now I'll never trip on that again."}],
-  draw(u){ bgFill("#0b0e1a","#04050a"); apply();
-  robot(DES_W*0.24,DES_H*0.60,1.1,u>4&&u<7?0.15:0.6,u);
-  const broke=u>4.2, bx=DES_W*0.55, by=DES_H*0.66;                                                 // a little block tower
-  for(let i=0;i<4;i++){ apply(); ctx.save();
-    const fall=broke?Math.min(1,(u-4.2)/1.2):0, off=fall*(i+1)*(i%2?1:-1)*40, rot=fall*(i%2?1:-1)*0.5;
-    ctx.translate(bx+off, by-i*30 + fall*fall*80); ctx.rotate(rot);
-    ctx.fillStyle=i===2&&broke?CO.tension:"#c3ccdf"; ctx.strokeStyle="#9fb2d6"; ctx.lineWidth=2; rr(-26,-14,52,28,5); ctx.fill(); ctx.stroke(); ctx.restore(); }
-  if(u>7){ apply(); const e=eio(clamp01((u-7.4)/1.4));                                             // a fresh note into the mistake jar
-    const x=mix(DES_W*0.55,DES_W*0.82,e), y=mix(DES_H*0.5,DES_H*0.6,e)-Math.sin(e*3.14)*50;
-    note(x,y,1.0,CO.memL,u); jar(DES_W*0.82,DES_H*0.62,0.95,"mem",4+(e>0.9?1:0),u); } }},
-/* 7 · lessons travel */
-{ id:"travel", name:"", base:12, pad:"heist", caps:[
+  draw(u){ vbg("#0e1f30","#0a1420",u,"#8fd0ff");
+  robot2(DES_W*0.24,DES_H*0.60,1.1,(u>4&&u<7)?0.12:0.7,u,"#8fd0ff");
+  const bx=DES_W*0.56, by=DES_H*0.66, broke=u>4.2;
+  for(let i=0;i<4;i++){ const bt=1+i*0.35; if(u<bt)continue; apply(); ctx.save();
+    if(!broke){ const pop=ovs(clamp01((u-bt)/0.5)); ctx.translate(bx,by-i*30); ctx.scale(pop,pop); }
+    else { const fall=Math.min(1,(u-4.2)/1.1), off=fall*(i+1)*(i%2?1:-1)*70, rot=fall*(i%2?1:-1)*0.7; ctx.translate(bx+off,by-i*30+fall*fall*140); ctx.rotate(rot); }
+    ctx.shadowBlur=8; ctx.shadowColor=(i===2&&broke)?CO.red:"#8fd0ff"; ctx.fillStyle=(i===2&&broke)?CO.red:"#c3ccdf"; ctx.strokeStyle="#9fb2d6"; ctx.lineWidth=2; rr(-26,-14,52,28,6); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  if(broke){ sparkBurst(bx,by-40,CO.red,(u-4.2)/1.0,20,190); apply(); ctx.globalAlpha=Math.max(0,0.5-(u-4.2)); ctx.fillStyle="#fff"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
+  if(u>7.4){ const e=eio(clamp01((u-7.4)/1.3)); const x=mix(DES_W*0.56,DES_W*0.82,e), y=mix(DES_H*0.5,DES_H*0.6,e)-Math.sin(e*3.14)*60;
+    for(let k=1;k<6;k++){ const ek=Math.max(0,e-k*0.05); const tx=mix(DES_W*0.56,DES_W*0.82,ek), ty=mix(DES_H*0.5,DES_H*0.6,ek)-Math.sin(ek*3.14)*60; apply(); ctx.globalAlpha=0.4-k*0.06; ctx.fillStyle=CO.memL; ctx.beginPath();ctx.arc(tx,ty,4,0,6.28);ctx.fill(); ctx.globalAlpha=1; }
+    note(x,y,1.0,CO.memL,u); const jb=1+(e>0.9?ovs((e-0.9)/0.1)*0.16:0); apply(); ctx.save(); ctx.translate(DES_W*0.82,DES_H*0.62); ctx.scale(jb,jb); jar(0,0,0.95,"mem",4+(e>0.9?1:0),u); ctx.restore();
+    if(e>0.92){ apply(); ctx.fillStyle=CO.idea; ctx.font="800 "+fontFor(16,22,32)+"px ui-sans-serif"; ctx.textAlign="center"; ctx.fillText("+1",DES_W*0.82,DES_H*0.62-70-(e-0.92)*220); } } }},
+{ id:"travel", name:"", base:11, pad:"heist", caps:[
   {a:1.0, txt:"Here's the magic.", say:"Now here's my favorite part."},
   {a:3.8, txt:"A note from another job—", say:"A note I wrote on a completely different project—"},
   {a:7.0, txt:"—saves this one.", say:"—can roll over and rescue the thing I'm building today. The projects are forgotten. The lessons travel."}],
-  draw(u){ bgFill("#0a0710","#04050a"); apply();
-  ctx.save(); ctx.globalAlpha=0.4; castleFar(DES_W*0.18,DES_H*0.5,0.6,u,{}); ctx.restore();          // a far, faded old project
-  ctx.fillStyle=CO.muted; ctx.font="italic "+fontFor(11,13,19)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("another project",DES_W*0.18,DES_H*0.62);
-  castleFar(DES_W*0.80,DES_H*0.52,0.85,u,{}); ctx.fillStyle=CO.muted; ctx.fillText("today's work",DES_W*0.80,DES_H*0.66);
-  if(u>3.5){ const e=eio(clamp01((u-3.8)/3.4));                                                     // the note arcs across
-    const x=mix(DES_W*0.18,DES_W*0.80,e), y=DES_H*0.34-Math.sin(e*3.14)*80;
-    apply(); note(x,y,1.3,CO.memL,u);
-    if(e>0.92){ apply(); ctx.save(); ctx.globalAlpha=Math.sin(u*8)>0?1:0.4; ctx.fillStyle=CO.gold;
-      ctx.font=fontFor(20,28,40)+"px serif"; ctx.textAlign="center"; ctx.fillText("✨",DES_W*0.80,DES_H*0.40); ctx.restore(); } } }},
-/* 8 · ideas wait */
-{ id:"waits", name:"", base:11, pad:"gate", caps:[
+  draw(u){ vbg("#2a1030","#160a22",u,"#b58cff");
+  ctx.save(); ctx.globalAlpha=0.45; castleFar(DES_W*0.18,DES_H*0.52,0.6,u,{}); ctx.restore();
+  apply(); ctx.fillStyle=CO.muted; ctx.font="italic "+fontFor(11,13,19)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText("another project",DES_W*0.18,DES_H*0.64);
+  castleFar(DES_W*0.80,DES_H*0.54,0.85,u,{}); apply(); ctx.fillStyle=CO.muted; ctx.fillText("today's work",DES_W*0.80,DES_H*0.68);
+  if(u>3.5){ const e=eio(clamp01((u-3.8)/3.2)); const x=mix(DES_W*0.18,DES_W*0.80,e), y=DES_H*0.32-Math.sin(e*3.14)*90;
+    for(let k=1;k<8;k++){ const ek=Math.max(0,e-k*0.04); const tx=mix(DES_W*0.18,DES_W*0.80,ek), ty=DES_H*0.32-Math.sin(ek*3.14)*90; apply(); ctx.globalAlpha=0.5-k*0.05; ctx.fillStyle=CO.crea; ctx.beginPath();ctx.arc(tx,ty,5,0,6.28);ctx.fill(); ctx.globalAlpha=1; }
+    glowAt(x,y,40,CO.crea,0.4); note(x,y,1.3,CO.memL,u);
+    if(e>0.9){ glowAt(DES_W*0.80,DES_H*0.42,90,CO.gold,0.4); sparkBurst(DES_W*0.80,DES_H*0.40,CO.gold,(e-0.9)/0.1,20,150); confetti(DES_W*0.80,DES_H*0.30,(u-6.6),30); } } }},
+{ id:"waits", name:"", base:10, pad:"gate", caps:[
   {a:1.0, txt:"Ideas are patient.", say:"The idea jar works a little differently. Ideas are patient."},
   {a:4.0, txt:"This one waited months.", say:"This little idea waited for months, fast asleep in the jar."},
   {a:7.2, txt:"Then, one day — it fit.", say:"Until one day it finally fit — and became something real in the game."}],
-  draw(u){ bgFill("#0d1020","#04050a"); stars(30,u,7); apply();
-  jar(DES_W*0.30,DES_H*0.54,1.2,"idea",1,u);
-  const awake=u>7;
-  apply(); seed(DES_W*0.30,DES_H*0.54,16,awake,u,{});                                               // the sleeping idea
-  if(u>2&&u<7){ apply(); ctx.save(); ctx.globalAlpha=0.7;                                           // seasons drifting by
-    for(let i=0;i<3;i++){ const d=(u*0.4+i*0.5)%1; ctx.fillStyle=i%2?"#8fae7c":"#cfe0f0";
-      ctx.font="18px serif"; ctx.fillText(i%2?"🍂":"❄",DES_W*0.30-30+i*30, DES_H*0.30+d*140); } ctx.restore(); }
-  if(u>7){ const e=eio(clamp01((u-7.2)/2));                                                          // floats to a glowing slot
-    const x=mix(DES_W*0.30,DES_W*0.68,e), y=mix(DES_H*0.54,DES_H*0.5,e)-Math.sin(e*3.14)*70;
-    apply(); seed(x,y,18,true,u,{});
-    castleFar(DES_W*0.72,DES_H*0.66,0.7,u,{gate:e}); } }},
-/* 9 · the loop */
-{ id:"loop", name:"", base:12, pad:"finale", caps:[
+  draw(u){ vbg("#0d1830","#08130f",u,"#79c97e");
+  jar(DES_W*0.30,DES_H*0.54,1.2,"idea",1,u); const awake=u>7; apply(); seed(DES_W*0.30,DES_H*0.54,16,awake,u,{});
+  if(u>2&&u<7){ apply(); for(let i=0;i<4;i++){ const d=(u*0.35+i*0.4)%1; ctx.globalAlpha=0.7*(1-Math.abs(d-0.5)*1.2); ctx.font="18px serif"; ctx.fillText(["🍂","❄","🌸","🍃"][i],DES_W*0.22+i*24,DES_H*0.26+d*150); } ctx.globalAlpha=1; }
+  if(u>7){ const e=eio(clamp01((u-7.2)/2)); const x=mix(DES_W*0.30,DES_W*0.68,e), y=mix(DES_H*0.54,DES_H*0.5,e)-Math.sin(e*3.14)*70;
+    glowAt(x,y,40,CO.idea,0.35); apply(); seed(x,y,18,true,u,{}); castleFar(DES_W*0.72,DES_H*0.66,0.7,u,{gate:e});
+    if(e>0.85){ sparkBurst(DES_W*0.72,DES_H*0.5,CO.ideaL,(e-0.85)/0.15,18,140); confetti(DES_W*0.72,DES_H*0.34,(u-8.8),34); } } }},
+{ id:"loop", name:"", base:11, pad:"finale", caps:[
   {a:1.0, txt:"Read. Build. Break. Write.", say:"Read. Build. Break. Write it down."},
   {a:4.4, txt:"Then do it all again.", say:"Then read again, and go around once more."},
   {a:7.4, txt:"That's the whole system.", say:"That circle, spinning a little wiser every day, is the whole system."}],
-  draw(u){ bgFill("#0a0c16","#04050a"); stars(40,u,5); apply();
+  draw(u){ vbg("#221a30","#0e1020",u,"#ffd98a");
   const cx=DES_W/2, cy=DES_H*0.46, R=175;
-  ctx.save(); ctx.setLineDash([8,8]); ctx.strokeStyle="rgba(216,183,101,.35)"; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.ellipse(cx,cy,R,R*0.66,0,0,6.28); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
-  const ST=[["📖","read",-1.5708],["🔨","build",0],["💥","break",1.5708],["✍️","write",3.1416]];
-  const dotA=-1.5708+u*0.9;
-  for(const [emo,lbl,a2] of ST){ const x=cx+Math.cos(a2)*R, y=cy+Math.sin(a2)*R*0.66;
-    let d=(dotA-a2)%6.2832; if(d<0)d+=6.2832; const near=d<0.7||d>5.6;
-    apply(); ctx.save(); ctx.globalAlpha=near?1:0.55; ctx.shadowBlur=near?16:6; ctx.shadowColor=CO.gold;
-    ctx.fillStyle="#12141f"; ctx.strokeStyle=near?CO.gold:"rgba(216,183,101,.5)"; ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(x,y,30,0,6.28);ctx.fill();ctx.stroke();
-    ctx.font="22px serif"; ctx.textAlign="center"; ctx.fillText(emo,x,y+8);
-    ctx.fillStyle=near?CO.gold:CO.muted; ctx.font="600 "+fontFor(12,15,22)+"px Georgia,serif"; ctx.fillText(lbl,x,y+52); ctx.restore(); }
-  apply(); robot(cx,cy,0.9,u>6?0.8:0.5,u);
-  const dx=cx+Math.cos(dotA)*R, dy=cy+Math.sin(dotA)*R*0.66;
-  apply(); ctx.save(); ctx.shadowBlur=14; ctx.shadowColor="#fff"; ctx.fillStyle="#fff"; ctx.beginPath();ctx.arc(dx,dy,7,0,6.28);ctx.fill(); ctx.restore(); }},
-/* 10 · end card */
+  apply(); ctx.save(); ctx.strokeStyle=rgba("#ffd98a",0.3); ctx.lineWidth=2; ctx.shadowBlur=12; ctx.shadowColor="#ffd98a"; ctx.setLineDash([8,10]); ctx.lineDashOffset=-u*20; ctx.beginPath(); ctx.ellipse(cx,cy,R,R*0.66,0,0,6.28); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  const ST=[["📖","read",-1.5708,CO.gold],["🔨","build",0,"#8fd0ff"],["💥","break",1.5708,CO.red],["✍️","write",3.1416,CO.idea]];
+  const dotA=-1.5708+(u<1?u*0.9:0.9+(u-1)*(0.9+Math.min(1.6,(u-1)*0.12)));
+  for(const it of ST){ const x=cx+Math.cos(it[2])*R, y=cy+Math.sin(it[2])*R*0.66; let d=(dotA-it[2])%6.2832; if(d<0)d+=6.2832; const near=d<0.8||d>5.5;
+    if(near) glowAt(x,y,60,it[3],0.35); apply(); ctx.save(); ctx.globalAlpha=near?1:0.6; ctx.shadowBlur=near?16:6; ctx.shadowColor=it[3];
+    ctx.fillStyle="#12141f"; ctx.strokeStyle=it[3]; ctx.lineWidth=near?3:2; ctx.beginPath();ctx.arc(x,y,32,0,6.28);ctx.fill();ctx.stroke();
+    ctx.font="24px serif"; ctx.textAlign="center"; ctx.fillText(it[0],x,y+9); ctx.fillStyle=near?it[3]:CO.muted; ctx.font="800 "+fontFor(12,15,22)+"px Georgia,serif"; ctx.fillText(it[1],x,y+54); ctx.restore(); }
+  robot2(cx,cy,0.95,0.85,u,"#ffd98a");
+  for(let k=0;k<8;k++){ const aa=dotA-k*0.08; const dx=cx+Math.cos(aa)*R, dy=cy+Math.sin(aa)*R*0.66; apply(); ctx.globalAlpha=0.9-k*0.11; ctx.fillStyle="#fff"; ctx.shadowBlur=10; ctx.shadowColor="#fff"; ctx.beginPath();ctx.arc(dx,dy,7-k*0.5,0,6.28);ctx.fill(); ctx.globalAlpha=1; ctx.shadowBlur=0; }
+  if(u>7.4){ for(let k=0;k<4;k++) sparkBurst(cx+Math.cos(k*1.5708)*R,cy+Math.sin(k*1.5708)*R*0.66,[CO.gold,"#8fd0ff",CO.red,CO.idea][k],(u-7.4)/1.2,10,90); } }},
 { id:"credits", name:"", base:8, pad:"credits", caps:[
   {a:0.8, txt:"Two jars. One loop.", card:true, sub:"that's how I remember", say:"Two jars. One loop. That's how I remember — and now you know the trick too."}],
-  draw(u){ bgFill("#04050a","#04050a"); apply();
-  if(u>4.5){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-4.5,3.5,0.6,3); ctx.textAlign="center";
-    jar(DES_W*0.42,DES_H*0.5,1.0,"mem",5,u); jar(DES_W*0.58,DES_H*0.5,1.0,"idea",5,u); ctx.restore(); } }}];
+  draw(u){ vbg("#1c2a18","#0c1610",u,"#ffd98a");
+  confetti(DES_W*0.5,-30,u-4.4,64);
+  robot2(DES_W*0.5,DES_H*0.42,1.3,0.9,u,"#ffd98a");
+  glowAt(DES_W*0.40,DES_H*0.64,90,CO.mem,0.2); glowAt(DES_W*0.60,DES_H*0.64,90,CO.idea,0.2);
+  apply(); jar(DES_W*0.40,DES_H*0.64,0.9,"mem",5,u); jar(DES_W*0.60,DES_H*0.64,0.9,"idea",5,u); }}];
 
 /* ---- text-driven timing: a scene lasts as long as its words need ---- */
 const CHOREO_F=1.45;                                    // pleasant fixed slow-down for the animation itself
@@ -429,8 +431,8 @@ function readTime(t){ return Math.min(15,Math.max(3.5,2.0+t.length*0.09)); }   /
 SCENES.forEach(sc=>{
   const F=sc.choreoF||CHOREO_F; sc.k=1/F;
   let end=0;
-  sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end+1.0); c.d=readTime((c.say||c.txt)+(c.sub||"")); end=c.s+c.d; });   // a real pause between lines
-  sc.dur=Math.max(sc.base*F, end+2.4);                                            // breathing room before the cut
+  sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end); c.d=readTime((c.say||c.txt)+(c.sub||"")); end=c.s+c.d; });   // a real pause between lines
+  sc.dur=Math.max(sc.base*F, end+0.7);                                            // breathing room before the cut
   // time-warp: real time -> choreography clock, pinned so each caption appears exactly
   // when its moment happens on screen (long captions slow the scene; sync never drifts)
   sc.warp=[[0,0]].concat(sc.caps.map(c=>[c.s,Math.min(c.a,sc.base)]),[[sc.dur,sc.base]]);
