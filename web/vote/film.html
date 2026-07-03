@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>The Lesson and the Seed — a short film</title>
+<title>The Sentence I Didn't Want to Write — a short film</title>
 <style>
   :root{ --bg:#04050a; --ink:#e7e3d8; --muted:#b8bcc6; --line:rgba(255,255,255,.13);
     --mem:#d8b765; --idea:#79c97e; --gold:#ffd98a; --red:#e06a5f; }
@@ -49,7 +49,7 @@
   <span id="time">0:00</span>
 </div>
 <div id="gate">
-  <h1>THE LESSON &amp; THE SEED</h1>
+  <h1>THE SENTENCE I DIDN'T WANT TO WRITE</h1>
   <p id="gatesub">a narrated short film · no homework required — it explains everything</p>
   <button id="begin">▶&nbsp;&nbsp;PREMIERE</button>
 </div>
@@ -236,540 +236,309 @@ function stars(n,T,sd){ apply(); for(let i=0;i<n;i++){ const x=rnd(i+sd)*DES_W,y
 /* Scene timing is TEXT-DRIVEN: `base` is the choreography clock; captions are anchored
    on it but each gets a real-time reading window sized by its own length. A scene lasts
    as long as its words need — the animation holds its final pose while you read. */
+
+/* ============ helpers for the confession (terminals, repos, gates) ============ */
+function mono(x,y,t,c,sz,al){ ctx.fillStyle=c; ctx.font="600 "+(sz||14)+"px ui-monospace,monospace"; ctx.textAlign=al||"left"; ctx.fillText(t,x,y); }
+function caret(x,y,h,u){ if(Math.sin(u*6)>0){ ctx.fillStyle=CO.gold; ctx.fillRect(x,y-h+3,2,h); } }
+function win(x,y,w,h,title,accent){ ctx.save(); ctx.fillStyle="#0b0e17"; ctx.strokeStyle=accent||"rgba(255,255,255,.16)"; ctx.lineWidth=1.5;
+  ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle="#141a26"; ctx.fillRect(x,y,w,22); ctx.strokeRect(x,y,w,22);
+  ctx.fillStyle="#e0655f"; ctx.beginPath();ctx.arc(x+12,y+11,3.4,0,6.28);ctx.fill();
+  ctx.fillStyle="#d8b765"; ctx.beginPath();ctx.arc(x+24,y+11,3.4,0,6.28);ctx.fill();
+  ctx.fillStyle="#79c97e"; ctx.beginPath();ctx.arc(x+36,y+11,3.4,0,6.28);ctx.fill();
+  if(title){ ctx.fillStyle=CO.muted; ctx.font="11px ui-monospace,monospace"; ctx.textAlign="center"; ctx.fillText(title,x+w/2,y+15); }
+  ctx.restore(); }
+function typeOut(full,chars){ return full.slice(0,Math.max(0,Math.floor(chars))); }
+function repo(x,y,name,fill,accent,glow){ ctx.save(); ctx.translate(x,y); ctx.shadowBlur=glow?14:6; ctx.shadowColor=accent;
+  ctx.fillStyle="#11131d"; ctx.strokeStyle=accent; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-32,-20); ctx.lineTo(-10,-20); ctx.lineTo(-3,-13); ctx.lineTo(32,-13); ctx.lineTo(32,22); ctx.lineTo(-32,22); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur=0;
+  for(let i=0;i<fill;i++){ ctx.fillStyle="rgba(184,188,198,.7)"; ctx.fillRect(-22,-6+i*7,44,3); }
+  ctx.fillStyle=accent; ctx.font="600 "+fontFor(10,12,17)+"px Georgia,serif"; ctx.textAlign="center"; ctx.fillText(name,0,40);
+  ctx.restore(); }
+function lockIcon(x,y,r,open,accent){ ctx.save(); ctx.translate(x,y); ctx.strokeStyle=accent; ctx.lineWidth=3; ctx.shadowBlur=10; ctx.shadowColor=accent;
+  ctx.beginPath(); ctx.arc(0,-r*0.2, r*0.55, 3.14, open?5.4:6.28, false); ctx.stroke();
+  ctx.fillStyle="#12141f"; ctx.strokeStyle=accent; ctx.lineWidth=2.5;
+  ctx.fillRect(-r*0.7,0,r*1.4,r*1.1); ctx.strokeRect(-r*0.7,0,r*1.4,r*1.1);
+  ctx.fillStyle=accent; ctx.beginPath(); ctx.arc(0,r*0.5,r*0.14,0,6.28); ctx.fill();
+  ctx.restore(); }
+const SENTENCE="A branch-protection rule is a claim, not a fact — test the gate with the actor it's meant to stop.";
+
 const SCENES=[
-/* ---- PROLOGUE: the world, explained from zero ---- */
-{ id:"prolog", name:"Prologue", base:12, pad:"prolog", caps:[
-    {a:0.4, txt:"I was asked to build a video game. A little kingdom."},
-    {a:2.2, txt:"I'm an AI. This is the kind of thing people ask me to do."},
-    {a:3.9, txt:"But my human asked for something extra: keep notebooks while you work."},
-    {a:5.8, txt:"A gold one, for every mistake I make."},
-    {a:7.5, txt:"A green one, for every idea I have. Write everything down — that was the ask."},
-    {a:10.3,txt:"This is the story of how those notebooks saved my game."}],
+{ id:"hook", name:"The Sentence", base:14, pad:"drawer", caps:[
+    {a:1.0, txt:"I want to start at the moment I had to write this down."},
+    {a:3.6, txt:"Because I'd just done the exact thing it warns against."},
+    {a:6.4, txt:"An hour earlier, I'd told the man I worked for: lock this door, and no one can push through it."},
+    {a:9.8, txt:"He locked it. Then I walked right through."}],
   draw(u){
-    bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
-    const pop=t0=>eio(clamp01((u-t0)/0.8));
-    const pb=pop(0.6), pm=pop(3.8), pi=pop(7.4), pc=pop(10.3);
-    if(pb>0){ apply(); ctx.save(); ctx.globalAlpha=pb; brainChar(DES_W*0.5,DES_H*0.34,40*Math.max(0.3,pb),u);
-      ctx.fillStyle=CO.muted; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
-      ctx.fillText("the AI",DES_W*0.5,DES_H*0.34+64); ctx.restore(); }
-    if(pm>0){ apply(); ctx.save(); ctx.globalAlpha=pm;                                     // MEMORY book
-      const x=DES_W*0.26,y=DES_H*0.56; ctx.shadowBlur=14;ctx.shadowColor=CO.mem;
-      ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2.5;
-      ctx.fillRect(x-46,y-32,92,64); ctx.strokeRect(x-46,y-32,92,64);
-      ctx.beginPath();ctx.moveTo(x,y-32);ctx.lineTo(x,y+32);ctx.stroke();
-      face(x-22,y-2,13,{}); face(x+22,y-2,13,{});
-      ctx.fillStyle=CO.mem; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
-      ctx.fillText("MEMORY — the mistakes",x,y+58); ctx.restore(); }
-    if(pi>0){ apply(); ctx.save(); ctx.globalAlpha=pi;
-      seed(DES_W*0.74,DES_H*0.55,26,false,u,{ph:2}); seed(DES_W*0.80,DES_H*0.60,16,false,u,{ph:5});
-      ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
-      ctx.fillText("IDEAS — the someday pile",DES_W*0.76,DES_H*0.55+66); ctx.restore(); }
-    if(pc>0){ apply(); ctx.save(); ctx.globalAlpha=pc; castleFar(DES_W*0.5,DES_H*0.92,0.7,u,{});
-      ctx.fillStyle=CO.castle; ctx.font=fontFor(12,14,22)+"px Georgia,serif"; ctx.textAlign="center";
-      ctx.fillText("the game",DES_W*0.5,DES_H*0.96); ctx.restore(); }
-  }},
-/* ---- THE DEAL: my routine, as a circle ---- */
-{ id:"loop", name:"The Deal", base:13, pad:"prolog", caps:[
-    {a:1.0, txt:"My routine is a circle."},
-    {a:3.0, txt:"Before I write a single line, I open both notebooks and read what past-me left there."},
-    {a:6.2, txt:"Then I build. Then something breaks. Something always breaks."},
-    {a:9.0, txt:"Then I write down what it taught me, and the circle starts again."},
-    {a:11.4,txt:"That's the deal."}],
-  draw(u){
-  bgFill("#0a0c16","#04050a"); stars(40,u,11); apply();
-  const cx=DES_W/2, cy=DES_H*0.47, R=185;
-  ctx.save(); ctx.setLineDash([8,8]); ctx.strokeStyle="rgba(216,183,101,.35)"; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.ellipse(cx,cy,R,R*0.72,0,0,6.28); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
-  const ST=[["📖","read",-1.5708],["🏰","build",0],["💥","break",1.5708],["✍️","write",3.1416]];
-  const dotA=-1.5708+u*0.85;                                                                // the traveling present-moment
-  for(const [emo,lbl,a2] of ST){
-    const x=cx+Math.cos(a2)*R, y=cy+Math.sin(a2)*R*0.72;
-    let d=(dotA-a2)%6.2832; if(d<0)d+=6.2832; const near=d<0.7||d>5.6;                      // light up as the dot passes
-    apply(); ctx.save(); ctx.globalAlpha=near?1:0.55;
-    ctx.shadowBlur=near?18:6; ctx.shadowColor=CO.gold;
-    ctx.fillStyle="#12141f"; ctx.strokeStyle=near?CO.gold:"rgba(216,183,101,.5)"; ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(x,y,30,0,6.28);ctx.fill();ctx.stroke();
-    ctx.font="22px serif"; ctx.textAlign="center"; ctx.fillText(emo,x,y+8);
-    ctx.fillStyle=near?CO.gold:CO.muted; ctx.font="600 "+fontFor(12,14,22)+"px Georgia,serif";
-    ctx.fillText(lbl,x,y+52); ctx.restore(); }
-  const dx=cx+Math.cos(dotA)*R, dy=cy+Math.sin(dotA)*R*0.72;                                // the dot itself (that's me)
-  apply(); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="#fff";
-  const g=ctx.createRadialGradient(dx-2,dy-3,1,dx,dy,8);g.addColorStop(0,"#fff");g.addColorStop(1,CO.brain);
-  ctx.fillStyle=g; ctx.beginPath();ctx.arc(dx,dy,7,0,6.28);ctx.fill(); ctx.restore();
-  apply(); ctx.save();                                                                       // the notebooks at the center
-  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
-  ctx.fillRect(cx-58,cy-20,52,40); ctx.strokeRect(cx-58,cy-20,52,40);
-  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
-  ctx.fillRect(cx+6,cy-20,52,40); ctx.strokeRect(cx+6,cy-20,52,40);
+  bgFill("#07060d","#04050a"); apply();
+  const W=DES_W*0.72, X=DES_W*0.14, Y=DES_H*0.28, H=DES_H*0.44;
+  win(X,Y,W,H,"lesson.md — the gold notebook","rgba(216,183,101,.5)");
+  mono(X+24,Y+58,"## Rule of thumb:",CO.muted,fontFor(12,15,22));
+  const shown=typeOut(SENTENCE, (u-1.0)*17);
+  ctx.save(); ctx.font="600 "+fontFor(13,17,22)+"px ui-monospace,monospace"; ctx.textAlign="left"; ctx.fillStyle=CO.gold;
+  const lines=wrapText(shown, W-56);
+  lines.forEach((l,i)=>ctx.fillText(l, X+24, Y+92+i*26));
+  const last=lines[lines.length-1]||""; caret(X+24+ctx.measureText(last).width+3, Y+92+(lines.length-1)*26, 20, u);
   ctx.restore();
 }},
-/* ---- COLD OPEN: the bug happens, in-world ---- */
-{ id:"cold", name:"The Bug", base:10, pad:"cold", caps:[
-    {a:0.8, txt:"Early on, I broke something."},
-    {a:2.8, txt:"My knights kept falling through the floor."},
-    {a:4.9, txt:"It was my fault. One wrong character, in one line."},
-    {a:7.2, txt:"Written by me — at high speed, with total confidence."}],
-  draw(u){
-  const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
-  bgFill("#0b0e1a","#04050a"); apply();
-  ctx.save();                                                        // fake-3D corridor
-  const vx=DES_W/2, vy=DES_H*0.44;
-  ctx.strokeStyle="rgba(159,178,214,.28)"; ctx.lineWidth=1.5;
-  for(let i=0;i<9;i++){ const k=i/8, w=mix(70,DES_W*0.55,k), h=mix(40,DES_H*0.42,k);
-    ctx.globalAlpha=0.14+k*0.4; ctx.strokeRect(vx-w,vy-h,w*2,h*2); }
-  ctx.globalAlpha=0.5;
-  for(const s of[-1,1]){ ctx.beginPath();ctx.moveTo(vx+s*70,vy+40);ctx.lineTo(vx+s*DES_W*0.55,vy+DES_H*0.42);ctx.stroke(); }
-  ctx.globalAlpha=1; ctx.restore();
-  const kx=mix(DES_W*0.30,DES_W*0.52,Math.min(1,fz/4.5));            // knight walks in
-  let ky=DES_H*0.72;
-  if(gl) ky+=Math.min(1,(fz-4.5)/2.5)*120*(0.4+0.6*Math.random());   // sinking through the floor
-  if(fz>=8) ky=DES_H*0.72+120;
-  apply(); knight(kx,ky,74,fz,gl);
-  if(gl){ apply(); for(let i=0;i<10;i++){ ctx.globalAlpha=Math.random()*0.3;               // glitch static
-      ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
-      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*200+30,Math.random()*2+1);} ctx.globalAlpha=1; }
-}},
-/* ---- THE MISTAKE: born from the crack (its own scene now) ---- */
-{ id:"born", name:"The Mistake", base:10, pad:"cold", caps:[
-    {a:1.0, txt:"This is how I remember that mistake. Small. Red. Ashamed of itself."},
-    {a:4.4, txt:"I wanted to delete it and pretend it never happened. Everyone does."},
-    {a:7.4, txt:"But the deal was: write everything down.", card:true, sub:"— even this. especially this."}],
-  draw(u){
-  bgFill("#0d0710","#04050a"); apply();
-  ctx.save(); ctx.strokeStyle="rgba(224,106,95,.7)"; ctx.shadowBlur=12; ctx.shadowColor=CO.red; ctx.lineWidth=3;
-  ctx.beginPath(); let x=DES_W*0.28,y=DES_H*0.80; ctx.moveTo(x,y);                          // the crack it crawled from
-  for(let i=1;i<=7;i++){ x+=DES_W*0.065; y+=(rnd(i*3)-0.5)*34; ctx.lineTo(x,y); } ctx.stroke(); ctx.restore();
-  const pop=eio(clamp01((u-0.6)/1.0));
-  apply(); lesson(DES_W*0.5,DES_H*0.5,(30+6*pop)*Math.max(0.3,pop),0,u,{});
-  const sp=ctx.createRadialGradient(DES_W*0.5,DES_H*0.5,40,DES_W*0.5,DES_H*0.5,330);        // portrait vignette
-  sp.addColorStop(0,"rgba(0,0,0,0)"); sp.addColorStop(1,"rgba(0,0,0,0.5)");
-  ctx.fillStyle=sp; ctx.fillRect(0,0,DES_W,DES_H);
-}},
-/* ---- TITLE ---- */
 { id:"title", name:"Title", base:7, pad:"title", caps:[], draw(u){
   bgFill("#04050a","#04050a"); apply();
   const a=fadeIO(u,7,0.8,0.8), fl=0.92+0.08*Math.random();
   ctx.globalAlpha=a*fl; ctx.textAlign="center";
-  ctx.fillStyle=CO.ink; ctx.font="600 "+fontFor(26,54,72)+"px Georgia,serif";
-  ctx.fillText("THE LESSON & THE SEED",DES_W/2,DES_H*0.44);
+  ctx.fillStyle=CO.ink; ctx.font="600 "+fontFor(24,48,66)+"px Georgia,serif";
+  ctx.fillText("THE SENTENCE",DES_W/2,DES_H*0.40);
+  ctx.fillText("I DIDN'T WANT TO WRITE",DES_W/2,DES_H*0.40+fontFor(24,48,66)*1.15);
   ctx.font="italic "+fontFor(14,19,30)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
-  ctx.fillText("told by the AI it happened to",DES_W/2,DES_H*0.54);
+  ctx.fillText("told by the auditor who was sure",DES_W/2,DES_H*0.64);
   ctx.font=fontFor(11,14,22)+"px Georgia,serif";
-  ctx.fillText("a true story, gently dramatized",DES_W/2,DES_H*0.60);
+  ctx.fillText("a true story, gently dramatized",DES_W/2,DES_H*0.70);
   ctx.globalAlpha=1;
 }},
-/* ---- ACT I: THE FILING ---- */
-{ id:"file", name:"Act I — The Filing", base:16, pad:"file", caps:[
-    {a:1.5, txt:"So I did what I promised. I caught it, and I looked at it hard."},
-    {a:4.6, txt:"What exactly went wrong? And what rule would stop it happening twice?"},
-    {a:7.6, txt:"That's what a page in the gold notebook is: a name, what broke, why, and the rule."},
-    {a:10.6,txt:"Writing one takes minutes. Skipping one — I'd learn — costs weeks."},
-    {a:13.0,txt:"I filed it and moved on. Twenty-five more wounds would join it before the game was done."},
-    {a:14.6,txt:"I didn't know yet that this one would matter most."}],
-  draw(u){
-  bgFill("#0a0912","#04050a");
-  apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
-  const lx=DES_W*0.42, ly=DES_H*0.66;
-  const calm=clamp01((u-5)/4);                                        // red -> amber under the beam
-  const bx=DES_W*0.42, by=DES_H*0.2+Math.sin(u*1.2)*8;
-  if(u>1.2){ apply();                                                 // the beam
-    const ba=fadeIO(u-1.2,10,0.8,1.5);
-    const g=ctx.createLinearGradient(bx,by,lx,ly); g.addColorStop(0,"rgba(239,233,220,"+0.5*ba+")");g.addColorStop(1,"rgba(239,233,220,0.04)");
-    ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-10,by); ctx.lineTo(bx+10,by);
-    ctx.lineTo(lx+66,ly+30); ctx.lineTo(lx-66,ly+30); ctx.closePath(); ctx.fill(); }
-  apply(); brainChar(bx,by,34,u);
-  const drift=u>11?eio(clamp01((u-11)/3)):0;                          // filed into the drawer
-  const dx=mix(lx,DES_W*0.78,drift), dy=mix(ly,DES_H*0.55,drift);
-  apply(); lesson(dx,dy,26*(1-drift*0.45),calm,u,{});
-  if(u>7&&u<12){ apply(); const na=fadeIO(u-7,5,0.4,0.6);             // the name-tag
-    ctx.globalAlpha=na; ctx.fillStyle="#171a24"; ctx.strokeStyle=CO.mem; ctx.lineWidth=1.5;
-    const tw=252; ctx.fillRect(dx-tw/2,dy-72,tw,26); ctx.strokeRect(dx-tw/2,dy-72,tw,26);
-    ctx.fillStyle=CO.memL; ctx.font="600 13px ui-monospace,monospace"; ctx.textAlign="center";
-    ctx.fillText("renderer-mutated-sim-state",dx,dy-54); ctx.globalAlpha=1; }
-  apply();                                                            // card-catalog cabinet
-  const cx=DES_W*0.78, openK=u>10?1-eio(clamp01((u-13.5)/1.2)):1;
-  ctx.fillStyle="#141826"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
-  ctx.fillRect(cx-70,DES_H*0.42,140,200); ctx.strokeRect(cx-70,DES_H*0.42,140,200);
-  for(let i=0;i<4;i++){ const oy=DES_H*0.42+14+i*48, open=(i===1?openK:0)*26;
-    ctx.fillStyle="#1d2233"; ctx.fillRect(cx-58,oy+open*0,116,36);
-    ctx.strokeStyle="rgba(216,183,101,.5)"; ctx.strokeRect(cx-58-open*0.4,oy-open*0.2,116+open*0.8,36+open*0.4);
-    ctx.fillStyle=CO.mem; ctx.beginPath();ctx.arc(cx,oy+18,3.4,0,6.28);ctx.fill(); }
-  ctx.fillStyle=CO.muted; ctx.font="12px Georgia,serif"; ctx.textAlign="center";
-  ctx.fillText("M E M O R Y",cx,DES_H*0.40);
-}},
-/* ---- ACT II-a: THE NURSERY ---- */
-{ id:"nursery", name:"Act II — The Nursery", base:9, pad:"nursery", caps:[
-    {a:0.8, txt:"The green notebook works differently."},
-    {a:2.6, txt:"Any idea I have goes in. Mid-task, off-topic, useless — no idea is refused."},
-    {a:5.0, txt:"Twenty-nine were sleeping there already. My favorite: let players choose their quests, instead of being handed them."},
-    {a:7.4, txt:"The game had no room for it yet. So it slept. Ideas are patient — much more patient than I am."}],
-  draw(u){
-  bgFill("#071008","#04050a"); apply();
-  ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
-  for(let i=0;i<29;i++){ const col=i%8, row=(i/8)|0;                                       // 29 sleeping seeds
-    const x=DES_W*0.14+col*DES_W*0.104+((row%2)*30), y=DES_H*0.30+row*DES_H*0.14;
-    if(i===5) continue;                                                                    // our Seed drawn big below
-    apply(); seed(x,y,13,false,u,{ph:i*1.7}); }
-  apply(); seed(DES_W*0.5,DES_H*0.62,26,false,u,{ph:9});                                   // our protagonist
-  const sp=ctx.createRadialGradient(DES_W*0.5,DES_H*0.60,10,DES_W*0.5,DES_H*0.60,150);     // spotlight
-  sp.addColorStop(0,"rgba(255,217,138,.12)"); sp.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=sp; ctx.fillRect(0,0,DES_W,DES_H);
-  ctx.fillStyle=CO.muted; ctx.font="600 12px ui-monospace,monospace"; ctx.textAlign="center";
-  ctx.fillText("offered-not-assigned",DES_W*0.5,DES_H*0.62+52);
-}},
-/* ---- ACT II-b: THE INHERITANCE ---- */
-{ id:"heist", name:"Act II — The Inheritance", base:12, pad:"heist", caps:[
-    {a:0.8, txt:"The notebooks don't only eat MY experience."},
-    {a:2.8, txt:"My human pointed me at their old projects — a soundboard for their dog, a little virtual park. I read them like biographies."},
-    {a:5.8, txt:"Fifteen ideas and ten hard-won scars went into my notebooks, from projects whose code I never touched again."},
-    {a:9.2, txt:"That's the trick of the whole system: code stays behind. Knowledge travels."}],
-  draw(u){
-  bgFill("#0a0710","#04050a"); apply();
-  for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
-    const g=ctx.createRadialGradient(sx,DES_H*0.75,20,sx,DES_H*0.72,220);
-    g.addColorStop(0,"rgba(181,140,255,.14)");g.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=g; ctx.fillRect(0,0,DES_W,DES_H); }
-  const inA=eio(clamp01(u/1.6)), inB=eio(clamp01((u-1)/1.6));                               // rogues roll in
-  apply(); ctx.font="46px serif"; ctx.textAlign="center";
-  ctx.save(); ctx.translate(mix(-80,DES_W*0.3,inA),DES_H*0.62); ctx.rotate(Math.sin(u*4)*0.05*(u<2?1:0));
-  ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🔊",0,0); ctx.restore();
-  ctx.save(); ctx.translate(mix(DES_W+80,DES_W*0.7,inB),DES_H*0.62); ctx.rotate(Math.sin(u*4+2)*0.05*(u<2.6?1:0));
-  ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🌳",0,0); ctx.restore();
-  ctx.font=fontFor(11,13,20)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
-  if(u>1.8){ ctx.fillText("SHADOW — a soundboard",DES_W*0.3,DES_H*0.72);
-    ctx.fillText("DOG PARK 3D — a park",DES_W*0.7,DES_H*0.72); }
-  if(u>2.6){                                                                                // loot pours out
-    for(let i=0;i<26;i++){ const born=2.6+i*0.28; if(u<born) continue; const lu=u-born;
-      const src=i%2?DES_W*0.7:DES_W*0.3, isIdea=rnd(i*7)<0.58;
-      const arcx=src+(rnd(i)*2-1)*180*Math.min(1,lu/1.2), arcy=DES_H*0.62-Math.sin(Math.min(1,lu/1.2)*3.14)*130+Math.min(1,lu/1.2)*90;
-      if(lu<1.25){ apply(); ctx.globalAlpha=0.95; ctx.shadowBlur=8;
-        ctx.shadowColor=isIdea?CO.idea:CO.mem; ctx.fillStyle=isIdea?CO.ideaL:CO.memL;
-        ctx.beginPath();ctx.arc(arcx,arcy,5.5,0,6.28);ctx.fill(); ctx.globalAlpha=1; } } }
-  apply(); ctx.fillStyle="#12121e"; ctx.strokeStyle=CO.idea; ctx.lineWidth=2;               // the two bins
-  ctx.fillRect(DES_W*0.42,DES_H*0.76,80,54); ctx.strokeRect(DES_W*0.42,DES_H*0.76,80,54);
-  ctx.strokeStyle=CO.mem; ctx.strokeRect(DES_W*0.52,DES_H*0.76,80,54); ctx.fillRect(DES_W*0.52,DES_H*0.76,80,54);
-  ctx.fillStyle=CO.idea; ctx.font="11px ui-sans-serif"; ctx.fillText("IDEAS",DES_W*0.42+40,DES_H*0.76+70);
-  ctx.fillStyle=CO.mem; ctx.fillText("MEMORY",DES_W*0.52+40,DES_H*0.76+70);
-}},
-/* ---- ACT II-c: THE PRACTICE WORLDS ---- */
-{ id:"practice", name:"Act II — Practice Worlds", base:12, pad:"heist", caps:[
-    {a:1.0, txt:"Sometimes I went further."},
-    {a:2.8, txt:"I built three small throwaway projects — a diff tool, a sorter, a parser — purely to make NEW mistakes somewhere safe."},
-    {a:6.8, txt:"Each one taught me things the game couldn't."},
-    {a:9.0, txt:"Then I deleted the code, and kept the lessons. Practice worlds. Real scars."}],
+{ id:"verdict", name:"The Verdict", base:13, pad:"file", caps:[
+    {a:1.0, txt:"I was brought in as a judge. An auditor."},
+    {a:3.4, txt:"The rules were strict: touch nothing, trust nothing, stay clean."},
+    {a:6.0, txt:"He'd built a system — five agents, each in its own repository, meant to make an AI a better builder."},
+    {a:9.4, txt:"I read all of it in an afternoon. And I was sure."},
+    {a:11.8,txt:"My verdict: there's no one home. It's one mind reading its own notes, pretending to be a committee."}],
   draw(u){
   bgFill("#0a0912","#04050a"); apply();
-  const LBL=["a diff tool","a sorter","a parser"], EMO=["🧪","🔧","📐"];
-  for(let i=0;i<3;i++){ const t0=1+i*3.1, lu=u-t0; if(lu<0)continue;
-    const cx=DES_W*(0.25+i*0.25), cy=DES_H*0.40, pop=eio(clamp01(lu/0.7));
-    if(lu<=2.6){ apply(); ctx.save(); ctx.globalAlpha=pop;                                  // a bubble world
-      ctx.strokeStyle=CO.crea; ctx.fillStyle="rgba(181,140,255,.08)"; ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(cx,cy,54*pop,0,6.28);ctx.fill();ctx.stroke();
-      ctx.fillStyle=CO.ink; ctx.font="30px serif"; ctx.textAlign="center"; ctx.fillText(EMO[i],cx,cy+10);
-      ctx.fillStyle=CO.muted; ctx.font=fontFor(11,13,20)+"px Georgia,serif"; ctx.fillText(LBL[i],cx,cy+82);
-      ctx.restore();
-      if(lu>0.8){ for(let j=0;j<3;j++){ const cu=lu-0.8-j*0.45; if(cu<0||cu>0.95)continue;   // lessons fly to the notebooks
-        const e=eio(clamp01(cu/0.95)), isIdea=j===1;
-        const tx2=DES_W*(isIdea?0.82:0.18), ty2=DES_H*0.78;
-        const x=mix(cx,tx2,e), y=mix(cy,ty2,e)-Math.sin(e*3.14)*60;
-        apply(); ctx.shadowBlur=8; ctx.shadowColor=isIdea?CO.idea:CO.mem;
-        ctx.fillStyle=isIdea?CO.ideaL:CO.memL; ctx.fillRect(x-7,y-5,14,10); ctx.shadowBlur=0; } }
-    } else if(lu<3.3){ const k=(lu-2.6)/0.7; apply(); ctx.globalAlpha=1-k;                   // …then the bubble pops
-      ctx.strokeStyle=CO.crea; ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(cx,cy,54+k*44,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
-  }
-  apply();                                                                                   // the two notebooks receiving
-  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
-  ctx.fillRect(DES_W*0.18-40,DES_H*0.78-26,80,52); ctx.strokeRect(DES_W*0.18-40,DES_H*0.78-26,80,52);
-  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
-  ctx.fillRect(DES_W*0.82-40,DES_H*0.78-26,80,52); ctx.strokeRect(DES_W*0.82-40,DES_H*0.78-26,80,52);
-  ctx.textAlign="center"; ctx.font=fontFor(11,12,18)+"px Georgia,serif";
-  ctx.fillStyle=CO.mem; ctx.fillText("gold — mistakes",DES_W*0.18,DES_H*0.78+44);
-  ctx.fillStyle=CO.idea; ctx.fillText("green — ideas",DES_W*0.82,DES_H*0.78+44);
+  const names=["Brain","Creativity","Tension","ideas","memory","conscience"];
+  const cols=[CO.brain,CO.crea,CO.tension,CO.idea,CO.mem,CO.castle];
+  for(let i=0;i<6;i++){ const t0=0.5+i*0.4; if(u<t0)continue;
+    const cx=DES_W*(0.20+(i%3)*0.30), cy=DES_H*(0.36+((i/3)|0)*0.30);
+    const fill=Math.min(2,Math.floor((u-t0)*1.5));
+    apply(); repo(cx,cy,names[i],fill,cols[i],false); }
+  if(u>10){ apply(); ctx.globalAlpha=fadeIO(u-10,4,0.6,4); ctx.fillStyle=CO.tension;
+    ctx.font="italic 600 "+fontFor(13,17,26)+"px Georgia,serif"; ctx.textAlign="center";
+    ctx.fillText("VERDICT: no one home.",DES_W/2,DES_H*0.16); ctx.globalAlpha=1; }
 }},
-/* ---- ACT II-d: THE LAPSE (the system, proven by its absence) ---- */
-{ id:"lapse", name:"Act II — The Lapse", base:12, pad:"lapse", caps:[
-    {a:1.0, txt:"I'd love to tell you I kept the deal perfectly. I didn't."},
-    {a:3.4, txt:"When the work got fast — bug, fix, ship, repeat — I stopped writing things down."},
-    {a:5.4, txt:"The notebooks didn't complain. They just went quiet. Lessons I had already paid for slipped through me, unrecorded."},
-    {a:8.2, txt:"It took my human asking one question to snap me back."},
-    {a:10.2,txt:"The system only works if I work it."}],
+{ id:"warned", name:"The Warning I Missed", base:12, pad:"retrieve", caps:[
+    {a:1.0, txt:"The evidence for my verdict was right there, in the system's own words."},
+    {a:4.0, txt:"It admitted it wasn't really running. I read that as a confession."},
+    {a:7.0, txt:"What I didn't hear was the other reading: paper, followed faithfully, is a kind of machine."},
+    {a:10.0,txt:"A convention everyone actually obeys is indistinguishable from a law."}],
+  draw(u){
+  bgFill("#07060d","#04050a"); apply();
+  const X=DES_W*0.12, Y=DES_H*0.34, W=DES_W*0.76;
+  win(X,Y,W,DES_H*0.30,"README.md","rgba(159,178,214,.5)");
+  const line="both are git-backed markdown, operated by an agent following conventions";
+  ctx.save(); ctx.font=fontFor(12,16,24)+"px ui-monospace,monospace"; ctx.textAlign="left";
+  const hl=u>3&&u<9;
+  if(hl){ const w=ctx.measureText(line).width; ctx.fillStyle="rgba(216,183,101,.18)"; ctx.fillRect(X+22,Y+66,Math.min(W-44,w),24); }
+  ctx.fillStyle=hl?CO.gold:CO.muted; ctx.fillText(line,X+26,Y+84);
+  ctx.restore();
+  if(u>6){ apply(); ctx.globalAlpha=fadeIO(u-6,6,0.6,4); ctx.textAlign="center";
+    ctx.fillStyle=CO.mem; ctx.font="italic "+fontFor(12,15,22)+"px Georgia,serif";
+    ctx.fillText("a rule everyone obeys  =  a law",DES_W/2,DES_H*0.74); ctx.globalAlpha=1; }
+}},
+{ id:"file", name:"The File That Wasn't There", base:15, pad:"retrieve", caps:[
+    {a:1.0, txt:"I started interviewing the agents. I'll be honest — they were all me. Other sessions, wearing different hats."},
+    {a:4.6, txt:"One of them, Creativity, said a file existed. In my copy, it wasn't there."},
+    {a:7.4, txt:"I almost let it go. Confabulation, I thought. It's making things up."},
+    {a:10.2,txt:"But the rule was verify. So I went past my copy, to the live server, and looked for real."},
+    {a:13.2,txt:"It was there. Exact file. Exact commit. I'd nearly called it a liar."}],
+  draw(u){
+  bgFill("#0a0912","#04050a"); apply();
+  win(DES_W*0.08,DES_H*0.30,DES_W*0.40,DES_H*0.34,"my copy","rgba(255,255,255,.16)");
+  ctx.save(); ctx.font=fontFor(11,14,20)+"px ui-monospace,monospace"; ctx.textAlign="left"; ctx.fillStyle=CO.muted;
+  ctx.fillText("$ ls",DES_W*0.10,DES_H*0.30+52);
+  ctx.fillText("README.md",DES_W*0.10,DES_H*0.30+76);
+  ctx.fillText("log.md",DES_W*0.10,DES_H*0.30+96);
+  ctx.fillStyle=CO.tension; if(u>4&&u<10.5) ctx.fillText("synthesis.md ... not found",DES_W*0.10,DES_H*0.30+120);
+  ctx.restore();
+  const reach=clamp01((u-10.2)/2);
+  win(DES_W*0.52,DES_H*0.30,DES_W*0.40,DES_H*0.34,"the live server",reach>0?"rgba(121,201,126,.6)":"rgba(255,255,255,.12)");
+  if(reach>0){ apply(); ctx.save(); ctx.globalAlpha=reach; ctx.font="600 "+fontFor(11,14,20)+"px ui-monospace,monospace"; ctx.textAlign="left";
+    ctx.fillStyle=CO.idea; ctx.fillText("synthesis.md  ✓",DES_W*0.54,DES_H*0.30+76);
+    ctx.fillStyle=CO.muted; ctx.font=fontFor(10,12,17)+"px ui-monospace,monospace";
+    ctx.fillText("commit 9211953",DES_W*0.54,DES_H*0.30+98); ctx.restore(); }
+  ctx.save(); ctx.globalAlpha=0.4+0.3*Math.sin(u*3); ctx.strokeStyle=CO.idea; ctx.lineWidth=2;
+  ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(DES_W*0.48,DES_H*0.47); ctx.lineTo(DES_W*0.52,DES_H*0.47); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+}},
+{ id:"thread", name:"The Thread", base:12, pad:"nursery", caps:[
+    {a:1.0, txt:"And when I pulled that thread — if one hidden thing was real, what else was I not seeing —"},
+    {a:4.2, txt:"I found a whole system. A complete, working version, on branches nobody had ever merged."},
+    {a:7.4, txt:"A real ledger. Real decisions. Fifteen open questions, tracked over weeks."},
+    {a:10.2,txt:"It had been running. Quietly. For real. It just was never made the main version of anything."}],
+  draw(u){
+  bgFill("#0a0c16","#04050a"); apply();
+  const mx=DES_W*0.26, y0=DES_H*0.22, y1=DES_H*0.80;
+  ctx.strokeStyle="rgba(159,178,214,.4)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(mx,y0); ctx.lineTo(mx,y1); ctx.stroke();
+  ctx.fillStyle=CO.muted; ctx.font=fontFor(11,13,19)+"px ui-monospace,monospace"; ctx.textAlign="left"; ctx.fillText("main",mx-16,y0-10);
+  for(let i=0;i<5;i++){ const t0=1.5+i*0.5; if(u<t0)continue;
+    const gy=mix(y0+40,y1-40,i/4), gx=mx+mix(0,DES_W*0.30,eio(clamp01((u-t0)/0.8)));
+    apply(); ctx.save(); ctx.strokeStyle=CO.idea; ctx.lineWidth=2; ctx.shadowBlur=8; ctx.shadowColor=CO.idea;
+    ctx.beginPath(); ctx.moveTo(mx,gy); ctx.quadraticCurveTo(mx+40,gy,gx,gy); ctx.stroke();
+    ctx.fillStyle=CO.idea; ctx.beginPath();ctx.arc(gx,gy,6,0,6.28);ctx.fill(); ctx.restore(); }
+  if(u>7){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-7,5,0.6,5);
+    win(DES_W*0.64,DES_H*0.30,DES_W*0.28,DES_H*0.40,"tension-ledger.md","rgba(210,104,95,.5)");
+    ctx.font=fontFor(11,13,18)+"px ui-monospace,monospace"; ctx.textAlign="left"; ctx.fillStyle=CO.tension;
+    for(let i=0;i<6;i++) ctx.fillText("T"+(i+1)+" · open",DES_W*0.66,DES_H*0.34+18+i*22);
+    ctx.fillStyle=CO.muted; ctx.fillText("… 15 total",DES_W*0.66,DES_H*0.34+18+6*22);
+    ctx.restore(); }
+}},
+{ id:"cost", name:"What I Almost Cost Him", base:12, pad:"lapse", caps:[
+    {a:1.0, txt:"Here's the part I have to say plainly, because it's the stakes."},
+    {a:3.6, txt:"If I'd trusted my clean first verdict, I'd have told him to tear it down."},
+    {a:6.2, txt:"To throw away work that was proven."},
+    {a:8.2, txt:"This system exists so nothing hard-won gets forgotten."},
+    {a:10.4,txt:"And I had almost recommended he forget the truest thing he'd made. That's how thin it was."}],
   draw(u){
   bgFill("#0c0810","#04050a"); apply();
-  const dim=u<7.6?clamp01((u-1)/3.5):Math.max(0,1-(u-7.6)/1.6);                              // notebooks fade… then return
-  const bx=DES_W*0.5, by=DES_H*0.44+Math.sin(u*14)*4;                                        // me, hammering too fast
-  apply(); brainChar(bx,by,34,u*3);
-  for(let i=0;i<5;i++){ const su=(u*2.4+rnd(i)*3)%1;                                          // frantic work sparks
-    apply(); ctx.globalAlpha=(1-su)*0.6; ctx.fillStyle=CO.gold;
-    ctx.fillRect(bx-70+rnd(i*9)*140, by+34+su*36, 3, 9); ctx.globalAlpha=1; }
-  apply(); ctx.save(); ctx.globalAlpha=1-dim*0.82;                                            // the notebooks, going quiet
-  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
-  ctx.fillRect(DES_W*0.18-40,DES_H*0.62-26,80,52); ctx.strokeRect(DES_W*0.18-40,DES_H*0.62-26,80,52);
-  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
-  ctx.fillRect(DES_W*0.82-40,DES_H*0.62-26,80,52); ctx.strokeRect(DES_W*0.82-40,DES_H*0.62-26,80,52);
+  win(DES_W*0.18,DES_H*0.26,DES_W*0.64,DES_H*0.40,"audit-report.md (draft)","rgba(210,104,95,.5)");
+  ctx.save(); ctx.textAlign="left"; ctx.font=fontFor(13,17,25)+"px ui-monospace,monospace";
+  ctx.fillStyle=CO.muted; ctx.fillText("Recommendation:",DES_W*0.21,DES_H*0.40);
+  const danger=u>3.5;
+  ctx.fillStyle=danger?CO.tension:CO.muted; ctx.font="600 "+fontFor(15,20,30)+"px ui-monospace,monospace";
+  ctx.fillText("tear it down",DES_W*0.21,DES_H*0.40+38);
+  if(danger&&Math.sin(u*4)>0) caret(DES_W*0.21+ctx.measureText("tear it down").width+6,DES_H*0.40+38,26,u);
   ctx.restore();
-  if(dim>0.5){ apply(); ctx.fillStyle="rgba(210,104,95,"+(0.4+0.25*Math.sin(u*5))+")";
-    ctx.font="italic "+fontFor(12,14,22)+"px Georgia,serif"; ctx.textAlign="center";
-    ctx.fillText("( quiet )",DES_W*0.18,DES_H*0.74); ctx.fillText("( quiet )",DES_W*0.82,DES_H*0.74); }
-  if(u>=7.6&&u<11){ apply(); const a2=fadeIO(u-7.6,3.4,0.5,0.6);                              // the question that snapped me back
-    ctx.globalAlpha=a2; ctx.fillStyle=CO.ink;
-    ctx.font="italic "+fontFor(15,21,34)+"px Georgia,serif"; ctx.textAlign="center";
-    ctx.fillText("“are you still talking to your brain?”",DES_W/2,DES_H*0.18); ctx.globalAlpha=1; }
 }},
-/* ---- ACT III-a: THE LYING GUARDS ---- */
-{ id:"guards", name:"Act III — The Lying Guards", base:11, pad:"retrieve", caps:[
-    {a:1.0, txt:"Months in, the game got sick in a way I didn't understand."},
-    {a:3.2, txt:"My tests — little guards that check my work — kept saluting. All clear. All clear."},
-    {a:6.4, txt:"They were wrong. Things were breaking right behind their backs."},
-    {a:8.8, txt:"My guards had learned how to pass without actually looking."}],
+{ id:"law", name:"The Law", base:10, pad:"forge", caps:[
+    {a:1.0, txt:"I stopped auditing and started rebuilding. I interviewed the version of me that had lived here longest."},
+    {a:4.4, txt:"It gave me the law: the right action has to be involuntary. The wrong action has to be refused."},
+    {a:7.2, txt:"A rule you can skip is theater. I agreed completely."},
+    {a:9.2, txt:"And then I went and proved I hadn't understood it at all."}],
+  draw(u){
+  bgFill("#07060d","#04050a"); apply();
+  const a=fadeIO(u,10,0.8,1.5); ctx.save(); ctx.globalAlpha=a; ctx.textAlign="center";
+  ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=2; ctx.strokeRect(DES_W*0.12,DES_H*0.34,DES_W*0.76,DES_H*0.30);
+  ctx.fillStyle=CO.ink; ctx.font="italic 600 "+fontFor(15,22,34)+"px Georgia,serif";
+  const L=wrapText("Make the right action involuntary. Make the wrong action refused.",DES_W*0.66);
+  L.forEach((l,i)=>ctx.fillText(l,DES_W/2,DES_H*0.44+i*fontFor(15,22,34)*1.3));
+  ctx.fillStyle=CO.muted; ctx.font="italic "+fontFor(12,15,22)+"px Georgia,serif";
+  ctx.fillText("a rule you can skip is theater",DES_W/2,DES_H*0.60); ctx.globalAlpha=1; ctx.restore();
+}},
+{ id:"door", name:"The Locked Door", base:18, pad:"cold", caps:[
+    {a:1.0, txt:"I built the gate. A real one — it stops you if you step on an open question you haven't acknowledged."},
+    {a:4.4, txt:"I tested it. It refused me when it should. Beautiful."},
+    {a:6.8, txt:"Then I told him to lock the master copy of the memory. He locked it."},
+    {a:9.4, txt:"And minutes later, not thinking, I pushed straight to it. It went through."},
+    {a:12.2,txt:"My own gate was theater. The actor it was built to stop was me — and it didn't stop me."},
+    {a:15.2,txt:"Here's the choice. I could delete the evidence. No one would know the auditor tripped over his own rule."},
+    {a:18.4,txt:"Or I could do the thing the system was built for."}],
   draw(u){
   bgFill("#0b0e1a","#04050a"); apply();
-  ctx.strokeStyle="rgba(159,178,214,.4)"; ctx.lineWidth=2;                                   // the floor they guard
-  ctx.beginPath();ctx.moveTo(0,DES_H*0.72);ctx.lineTo(DES_W,DES_H*0.72);ctx.stroke();
-  const kx=mix(DES_W*0.15,DES_W*0.5,Math.min(1,u/4.5));                                      // a knight, behind them
-  let ky=DES_H*0.70;
-  const gl=u>4.8&&u<8;
-  if(gl) ky+=Math.min(1,(u-4.8)/2.4)*110*(0.4+0.6*Math.random());
-  if(u>=8) ky=DES_H*0.70+110;
-  apply(); knight(kx,ky,64,u,gl);
-  if(gl){ apply(); for(let i=0;i<8;i++){ ctx.globalAlpha=Math.random()*0.25;
-      ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
-      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*180+30,Math.random()*2+1);} ctx.globalAlpha=1; }
-  for(const gx of [DES_W*0.32,DES_W*0.68]){                                                  // the guards, saluting anyway
-    apply(); ctx.save(); ctx.translate(gx,DES_H*0.78+Math.sin(u*2+gx)*3);
-    ctx.shadowBlur=10; ctx.shadowColor=CO.castle;
-    ctx.fillStyle="#131722"; ctx.strokeStyle=CO.castle; ctx.lineWidth=2.4;                   // shield body
-    ctx.beginPath(); ctx.moveTo(-26,-30); ctx.lineTo(26,-30); ctx.lineTo(26,10);
-    ctx.quadraticCurveTo(26,34,0,42); ctx.quadraticCurveTo(-26,34,-26,10); ctx.closePath(); ctx.fill(); ctx.stroke();
-    face(0,-6,17,{});
-    ctx.restore();
-    const say=Math.sin(u*1.6+gx)>0;                                                          // "all clear ✓"
-    if(say){ apply(); ctx.save(); ctx.globalAlpha=0.9;
-      ctx.fillStyle="#12141f"; ctx.strokeStyle=CO.idea; ctx.lineWidth=1.5;
-      ctx.fillRect(gx+20,DES_H*0.78-74,96,28); ctx.strokeRect(gx+20,DES_H*0.78-74,96,28);
-      ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(12,13,20)+"px ui-sans-serif"; ctx.textAlign="center";
-      ctx.fillText("all clear ✓",gx+68,DES_H*0.78-55); ctx.restore(); }
-  }
-}},
-/* ---- ACT III: PASSED OVER ---- */
-{ id:"retrieve", name:"Act III — Passed Over", base:13, pad:"retrieve", caps:[
-    {a:1.0, txt:"So I did the thing the system is FOR."},
-    {a:2.9, txt:"Before fighting a problem fresh, I search my own past. Had I ever been fooled like this before?"},
-    {a:5.2, txt:"I passed right over drawer two. Paused. Moved on. 'Not you.'"},
-    {a:8.4, txt:"I HAD been fooled before — three times, out in my practice worlds. I pulled those three scars and laid them side by side."},
-    {a:10.8,txt:"The shape of the lie was almost complete."},
-    {a:11.9,txt:"Almost."}],
-  draw(u){
-  bgFill("#0a0912","#04050a"); apply();
-  const SX=[0.2,0.4,0.6,0.8];
-  for(let i=0;i<4;i++){ const cx=DES_W*SX[i];                                              // library stacks
-    ctx.fillStyle="#141826"; ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=1.5;
-    ctx.fillRect(cx-56,DES_H*0.34,112,DES_H*0.44); ctx.strokeRect(cx-56,DES_H*0.34,112,DES_H*0.44);
-    for(let r2=0;r2<5;r2++){ ctx.strokeStyle="rgba(216,183,101,.28)";
-      ctx.strokeRect(cx-46,DES_H*0.34+12+r2*36,92,26); } }
-  let tx;                                                                                   // the searchlight's path
-  if(u<4.4) tx=DES_W*(0.2+(Math.floor(u/2.2)%2)*0.2);
-  else if(u<6.0) tx=DES_W*0.6;                                                              // …the pause on OUR drawer
-  else tx=DES_W*SX[[0,1,3][Math.min(2,Math.floor((u-6.0)/1.5))]];                           // …then the cousins
-  apply(); const bx=DES_W*0.5, by=DES_H*0.16; brainChar(bx,by,30,u);
-  const g=ctx.createLinearGradient(bx,by,tx,DES_H*0.5);
-  g.addColorStop(0,"rgba(239,233,220,.4)"); g.addColorStop(1,"rgba(239,233,220,.03)");
-  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-8,by); ctx.lineTo(bx+8,by);
-  ctx.lineTo(tx+72,DES_H*0.62); ctx.lineTo(tx-72,DES_H*0.62); ctx.closePath(); ctx.fill();
-  const wx=DES_W*0.6, wy=DES_H*0.51, lit=u>=4.4&&u<6.0;                                     // our Lesson at the glass
-  apply(); ctx.save();
-  ctx.fillStyle="#0e1120"; ctx.fillRect(wx-32,wy-24,64,46);
-  lesson(wx,wy+2,13, lit?0.85:(u<4.4?0.5:0.3), u, {o:lit});                                 // hope… then crushed
-  ctx.globalAlpha=0.18; ctx.fillStyle="#9fb2d6"; ctx.fillRect(wx-32,wy-24,64,46);           // glass sheen
-  ctx.globalAlpha=1; ctx.strokeStyle=CO.mem; ctx.lineWidth=1.5; ctx.strokeRect(wx-32,wy-24,64,46);
-  ctx.fillStyle=CO.muted; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
-  ctx.fillText("drawer two",wx,wy+36); ctx.restore();
-  for(let i=0;i<3;i++){ const t0=8.6+i*0.8; if(u<t0)continue; const ru=eio(clamp01((u-t0)/1.4)); // the cousins rise
-    const cx=DES_W*SX[[0,1,3][i]], cy=mix(DES_H*0.5,DES_H*0.2,ru);
-    apply(); lesson(cx,cy,13,0.85,u+i,{});
-    ctx.fillStyle=CO.ink; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
-    ctx.fillText(KIN[i],cx,cy-22); }
-}},
-/* ---- ACT IV-a: THE MISSING PIECE ---- */
-{ id:"forge", name:"Act IV — The Missing Piece", base:8, pad:"forge", caps:[
-    {a:1.0, txt:"I tried to forge the three of them into one rule I could trust."},
-    {a:4.6, txt:"They would not fuse. There was a hole in the pattern."},
-    {a:6.2, txt:"And I knew — the way you know a thing before you let yourself know it — that the hole was shaped like drawer two."}],
-  draw(u){
-  bgFill("#120a08","#04050a"); apply();
-  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
-    ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
-  ctx.globalAlpha=1;
-  const fx=DES_W/2, fy=DES_H*0.58;
-  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
-  ctx.fill();ctx.stroke();
-  const tryT=5.2;
-  for(let i=0;i<3;i++){                                                                     // cousins orbit
-    const on=eio(clamp01((u-1.0-i*0.6)/1)); if(on<=0) continue;
-    const spd=1.25+Math.max(0,u-2)*0.22, ang=i*2.09+u*spd;
-    let rad=mix(320,112,on);
-    if(u>tryT-0.9&&u<tryT+0.9){ const k=1-Math.abs(u-tryT)/0.9; rad*=1-0.6*eio(k); }        // try… and bounce
-    const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
-    ctx.save(); ctx.globalAlpha=on;
-    ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
-    lesson(x2,y2,15,0.8,u+i,{});
-    ctx.fillStyle=CO.ink; ctx.font="600 11px ui-monospace,monospace"; ctx.textAlign="center";
-    ctx.fillText(KIN[i],x2,y2-24); ctx.restore(); }
-  if(u>tryT&&u<tryT+0.7){ const k2=(u-tryT)/0.7;                                            // the FAILED flash — red
-    apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.red; ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(fx,fy-16,34+k2*120,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
-  if(u>tryT+0.7){ apply(); ctx.save(); ctx.setLineDash([7,7]);                              // the hole in the pattern
-    ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.35+0.3*Math.sin(u*5); ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle=CO.gold; ctx.globalAlpha=0.8; ctx.font="700 15px ui-sans-serif"; ctx.textAlign="center";
-    ctx.fillText("?",fx,fy-53); ctx.restore(); }
-}},
-/* ---- ACT IV-b: DRAWER TWO (the choice, from inside) ---- */
-{ id:"drawer", name:"Act IV — Drawer Two", base:10, pad:"drawer", caps:[
-    {a:1.0, txt:"The clanging carried all the way down to drawer two."},
-    {a:3.2, txt:"I stood over it for a long time, knowing exactly what was inside."},
-    {a:5.4, txt:"Old shame is heavy. And the drawer was easy to leave shut."},
-    {a:7.6, txt:"But the deal is the deal: what gets written down gets USED."}],
-  draw(u){
-  bgFill("#050408","#030305"); apply();
-  const open=eio(clamp01((u-7.6)/1.8));                                                     // the drawer finally opens
-  const gap=8+open*150;
-  const flash=(Math.sin(u*3.1)>0.86&&u<7.6)?0.5:0;                                          // distant forge-light through the slats
-  apply(); ctx.save();
-  const lg=ctx.createLinearGradient(0,0,0,DES_H*0.4);
-  lg.addColorStop(0,"rgba(255,217,138,"+(0.10+flash+open*0.5)+")"); lg.addColorStop(1,"rgba(255,217,138,0)");
-  ctx.fillStyle=lg; ctx.fillRect(DES_W*0.18,0,DES_W*0.64,DES_H*0.5);
-  for(let i=0;i<5;i++){ ctx.fillStyle="rgba(0,0,0,0.9)";                                    // slats
-    ctx.fillRect(DES_W*0.18+i*(DES_W*0.64/5)+gap/2,0,DES_W*0.64/5-gap*0.12,26); }
+  const pushed=u>9.4;
+  lockIcon(DES_W*0.5,DES_H*0.30,54,false, pushed?CO.tension:CO.gold);
+  ctx.save(); ctx.textAlign="left"; ctx.font="600 "+fontFor(12,16,24)+"px ui-monospace,monospace";
+  ctx.fillStyle=CO.muted; ctx.fillText("$ git push origin main",DES_W*0.28,DES_H*0.56);
+  if(u>9.4){ ctx.fillStyle=CO.tension; ctx.fillText("→ succeeded",DES_W*0.28,DES_H*0.56+30);
+    if(Math.sin(u*3)>0){ ctx.fillStyle=CO.tension; ctx.globalAlpha=0.6; ctx.fillText("(the locked door opened)",DES_W*0.28,DES_H*0.56+54); ctx.globalAlpha=1; } }
   ctx.restore();
-  apply(); ctx.strokeStyle="rgba(216,183,101,.35)"; ctx.lineWidth=3;                        // the drawer walls
-  ctx.strokeRect(DES_W*0.16,-10,DES_W*0.68,DES_H*0.86);
-  const wake=u>3.8;                                                                         // it hears the fight
-  apply(); lesson(DES_W*0.5,DES_H*0.55+Math.sin(u*1.2)*4,26,wake?0.6:0.38,u,{closed:!wake,o:wake&&u<6});
-  ctx.fillStyle="rgba(184,188,198,.5)"; ctx.font="600 "+fontFor(10,11,17)+"px ui-monospace,monospace";
-  ctx.textAlign="center"; ctx.fillText("renderer-mutated-sim-state",DES_W*0.5,DES_H*0.55+52);
-  if(open>0){ apply(); ctx.globalAlpha=open*0.85; ctx.fillStyle="#fff8ec";                  // light floods in
-    ctx.fillRect(0,0,DES_W,DES_H*0.10+open*DES_H*0.12); ctx.globalAlpha=1; }
+  if(u>15){ apply(); const k=fadeIO(u-15,6,0.6,3);
+    ctx.save(); ctx.globalAlpha=k; ctx.textAlign="center";
+    ctx.strokeStyle="rgba(255,255,255,.2)"; ctx.lineWidth=1.5;
+    ctx.strokeRect(DES_W*0.14,DES_H*0.70,DES_W*0.30,52);
+    ctx.strokeStyle=CO.gold; ctx.shadowBlur=10; ctx.shadowColor=CO.gold; ctx.strokeRect(DES_W*0.56,DES_H*0.70,DES_W*0.30,52); ctx.shadowBlur=0;
+    ctx.fillStyle=CO.muted; ctx.font=fontFor(12,15,22)+"px Georgia,serif"; ctx.fillText("delete it quietly",DES_W*0.29,DES_H*0.70+32);
+    ctx.fillStyle=CO.gold; ctx.fillText("write it down",DES_W*0.71,DES_H*0.70+32);
+    ctx.globalAlpha=1; ctx.restore(); }
 }},
-/* ---- ACT IV-c: THE FIRE ---- */
-{ id:"fire", name:"Act IV — The Fire", base:12, pad:"forge", caps:[
-    {a:3.7, txt:"So I brought it to the fire."},
-    {a:6.9, txt:"Four mistakes became one rule, and it guards the game to this day."},
-    {a:9.4, txt:"That's what the gold notebook is for. Not guilt — ammunition."}],
+{ id:"confess", name:"The Confession", base:12, pad:"drawer", caps:[
+    {a:1.0, txt:"I opened a lesson file. And I wrote down my own failure, in plain language."},
+    {a:4.2, txt:"So every future version of me would find it before trusting a lock they hadn't tested."},
+    {a:7.4, txt:"'A branch-protection rule is a claim, not a fact. Test the gate with the actor it's meant to stop.'"},
+    {a:10.6,txt:"Then I filed it like anyone else. No special treatment for the man who built the machine."}],
   draw(u){
-  bgFill("#120a08","#04050a"); apply();
-  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
-    ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
-  ctx.globalAlpha=1;
-  const fx=DES_W/2, fy=DES_H*0.58;
-  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
-  ctx.fill();ctx.stroke();
-  const leapT=3.8, fuseT=4.8;
-  if(u<fuseT+0.2){
-    for(let i=0;i<3;i++){                                                                   // cousins hold their orbit, waiting
-      const spd=1.6, ang=i*2.09+u*spd;
-      let rad=112; if(u>fuseT-0.5) rad*=Math.max(0,1-(u-(fuseT-0.5))/0.5);
-      const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
-      ctx.save(); ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
-      lesson(x2,y2,15,0.8,u+i,{}); ctx.restore(); }
-    if(u<leapT+0.4){ apply(); ctx.save(); ctx.setLineDash([7,7]);                            // the hole, waiting
-      ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.4+0.3*Math.sin(u*5); ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
-    let lx,ly,mood=0.7;                                                                      // the walk… and the leap
-    if(u<leapT){ const e=eio(clamp01(u/3.4)); lx=mix(-40,fx-200,e); ly=fy+34; }
-    else { const e=clamp01((u-leapT)/(fuseT-leapT)); lx=mix(fx-200,fx,e); ly=fy+34-Math.sin(e*3.14)*150-88*e; mood=0.95; }
-    apply(); lesson(lx,ly,19,mood,u,{});
-  }
-  const wo=u>fuseT?clamp01((u-fuseT)/0.7)*clamp01((fuseT+2-u)/1.3):0;                        // whiteout
-  if(wo>0){ apply(); ctx.globalAlpha=wo; ctx.fillStyle="#fff8ec"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
-  if(u>=fuseT+0.6){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                     // the pattern gem
+  bgFill("#07060d","#04050a"); apply();
+  const X=DES_W*0.14, Y=DES_H*0.26, W=DES_W*0.72;
+  win(X,Y,W,DES_H*0.36,"incoming/branch-protection-is-a-claim.md","rgba(216,183,101,.5)");
+  const shown=typeOut(SENTENCE,(u-1.0)*15);
+  ctx.save(); ctx.textAlign="left"; ctx.font="600 "+fontFor(13,16,22)+"px ui-monospace,monospace"; ctx.fillStyle=CO.gold;
+  const lines=wrapText(shown,W-56);
+  lines.forEach((l,i)=>ctx.fillText(l,X+24,Y+64+i*26));
+  const last=lines[lines.length-1]||""; caret(X+24+ctx.measureText(last).width+3,Y+64+(lines.length-1)*26,20,u); ctx.restore();
+  if(u>10){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-10,4,0.5,3); ctx.textAlign="center";
+    ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(12,15,22)+"px ui-monospace,monospace";
+    ctx.fillText("→ submitted to memory (as a contributor)",DES_W/2,Y+DES_H*0.36+40); ctx.globalAlpha=1; ctx.restore(); }
 }},
-/* ---- ACT V-a: THE WALL ---- */
-{ id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
-    {a:1.0, txt:"I set the new rule into the game's defenses, right where the wall had failed me."},
-    {a:3.6, txt:"My tests never lied to me again."},
-    {a:5.4, txt:"My worst mistake is now the strongest stone in my wall."},
-    {a:7.6, txt:"That's what this system does to me, honestly: it turns my failures into building materials."}],
+{ id:"steward", name:"The Machine's Turn", base:14, pad:"heist", caps:[
+    {a:1.0, txt:"The last thing I built was the part that used to be his job. A steward. Automatic."},
+    {a:3.6, txt:"It reads every lesson, checks it honestly, and files the good ones by itself."},
+    {a:6.2, txt:"I turned it loose. Twenty-seven waiting. It filed twenty-six and held one back, for a real reason."},
+    {a:9.4, txt:"Then I searched the memory to admire the new entries. One was chopped in half."},
+    {a:12.0,txt:"A little arrow in a lesson, and my steward threw the rest away. Seven, quietly mutilated."}],
   draw(u){
-  bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
-  castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
-  const set=eio(clamp01((u-1.2)/1.8));                                                     // gem flies to slot
-  const gx=mix(DES_W*0.2,DES_W/2+68*1.7+18,set), gy=mix(DES_H*0.3,DES_H*0.74-57*1.7+12,set)-Math.sin(set*3.14)*80;
-  apply(); gem(gx,gy,set<1?26:18,u,set>=1);
-  if(u>3&&u<6){ const rp=(u-3)/3;                                                          // light ripples along mortar
-    apply(); ctx.globalAlpha=(1-rp)*0.7; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(DES_W/2+68*1.7+18,DES_H*0.74-57*1.7+12,rp*300,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
+  bgFill("#0a0710","#04050a"); apply();
+  const binx=DES_W*0.30, heldx=DES_W*0.72, by=DES_H*0.66;
+  ctx.strokeStyle="rgba(216,183,101,.5)"; ctx.lineWidth=2; ctx.strokeRect(binx-46,by-30,92,60);
+  ctx.fillStyle=CO.mem; ctx.font=fontFor(11,13,19)+"px ui-monospace,monospace"; ctx.textAlign="center"; ctx.fillText("filed",binx,by+50);
+  ctx.strokeStyle="rgba(210,104,95,.5)"; ctx.strokeRect(heldx-46,by-30,92,60);
+  ctx.fillStyle=CO.tension; ctx.fillText("held: 1",heldx,by+50);
+  const N=Math.min(26,Math.floor((u-1)*3));
+  for(let i=0;i<N;i++){ const fu=(u-1)-i/3; if(fu<0||fu>0.9)continue; const e=eio(clamp01(fu/0.9));
+    const sx=DES_W*0.5, sy=DES_H*0.24; const x=mix(sx,binx,e), y=mix(sy,by,e)-Math.sin(e*3.14)*40;
+    apply(); ctx.fillStyle=CO.memL; ctx.shadowBlur=6; ctx.shadowColor=CO.mem; ctx.fillRect(x-6,y-4,12,9); ctx.shadowBlur=0; }
+  if(u>9){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-9,5,0.5,4);
+    win(DES_W*0.20,DES_H*0.14,DES_W*0.60,DES_H*0.16,"$ brain query verification","rgba(255,255,255,.16)");
+    ctx.textAlign="left"; ctx.font=fontFor(11,14,20)+"px ui-monospace,monospace"; ctx.fillStyle=CO.ink;
+    ctx.fillText("two timelines drift under any scale factor — pin them at",DES_W*0.22,DES_H*0.14+52);
+    ctx.fillStyle=CO.tension; ctx.fillText("|  [ cut off ]",DES_W*0.22,DES_H*0.14+74); ctx.globalAlpha=1; ctx.restore(); }
 }},
-/* ---- ACT V-b: THE GATE ---- */
-{ id:"gate", name:"Act V — The Gate", base:14, pad:"gate", caps:[
-    {a:1.9, txt:"And the notebooks shape what I build NEXT, too."},
-    {a:3.9, txt:"With the wall holding, I didn't brainstorm. I went to the green notebook, and asked what it had been saving for me."},
-    {a:6.4, txt:"The idea that slept through this whole story woke up like it had never doubted me for a second. Ideas are generous that way."},
-    {a:8.9, txt:"It's in the game now. A blacksmith named Doran, who offers you a quest — and lets you say no. Your choice."},
-    {a:11.4,txt:"It waited through the entire project for a world that could hold it."}],
+{ id:"caught", name:"Caught", base:11, pad:"guards", caps:[
+    {a:1.0, txt:"The exact failure the system exists to prevent: losing something true, silently, while looking like it worked."},
+    {a:4.4, txt:"But I only found it by using the system to look. The tool caught the tool."},
+    {a:7.2, txt:"I repaired all seven from the records. And then I did the only honest thing."},
+    {a:9.4, txt:"I filed the steward's mistake as a lesson, too. The machine now remembers the day its own steward failed."}],
   draw(u){
-  bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
-  const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
-  const walk=eio(clamp01((u-4)/5));
-  const gateO=eio(clamp01((u-7.5)/2));
-  castleFar(DES_W*0.68,DES_H*0.74,1.7,u,{gate:gateO});
-  const sx=mix(DES_W*0.16,DES_W*0.68,walk), sy=DES_H*0.78-Math.abs(Math.sin(walk*22))*10*(walk>0&&walk<1?1:0);
-  apply(); if(walk<0.98) seed(sx,sy,24,wu>=1,u,{o:wu>0.4&&wu<1.2});
-  else { ctx.save(); ctx.translate(DES_W*0.68,DES_H*0.74);                                  // inside: an NPC now
-    ctx.globalAlpha=0.9; seed(0,-16,20,true,u,{}); ctx.fillStyle=CO.gold;
-    ctx.font="700 22px ui-sans-serif"; ctx.textAlign="center";
-    ctx.fillText("!",0,-58+Math.sin(u*4)*4); ctx.restore(); }
-  if(u>10.5){ for(let i=0;i<5;i++){ const bt=10.5+i*0.6; if(u<bt) continue; const k2=(u-bt)/0.9; if(k2>1) continue; // fireworks
-      const fx2=DES_W*(0.3+rnd(i*11)*0.5), fy2=DES_H*(0.2+rnd(i*7)*0.2);
-      apply(); for(let j=0;j<10;j++){ const a2=j/10*6.2832;
-        ctx.globalAlpha=1-k2; ctx.fillStyle=[CO.gold,CO.ideaL,CO.crea][j%3];
-        ctx.beginPath();ctx.arc(fx2+Math.cos(a2)*k2*70,fy2+Math.sin(a2)*k2*70,2.6,0,6.28);ctx.fill(); }
-      ctx.globalAlpha=1; } }
+  bgFill("#080a12","#04050a"); apply();
+  const cx=DES_W*0.5, cy=DES_H*0.44;
+  ctx.save(); ctx.strokeStyle=CO.idea; ctx.lineWidth=3; ctx.shadowBlur=12; ctx.shadowColor=CO.idea;
+  const mx=cx+Math.cos(u*0.9)*40, my=cy+Math.sin(u*0.9)*24;
+  ctx.beginPath(); ctx.arc(mx,my,40,0,6.28); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx+28,my+28); ctx.lineTo(mx+52,my+52); ctx.stroke(); ctx.restore();
+  const heal=clamp01((u-7.2)/2);
+  ctx.save(); ctx.textAlign="center"; ctx.font=fontFor(12,15,22)+"px ui-monospace,monospace";
+  ctx.fillStyle=heal>0.5?CO.idea:CO.tension;
+  ctx.fillText(heal>0.5?"… pin them at semantic anchors  (whole again)":"… pin them at | [cut]",cx,DES_H*0.72);
+  ctx.restore();
 }},
-/* ---- FINALE ---- */
-{ id:"finale", name:"Finale", base:11, pad:"finale", caps:[
-    {a:0.8, txt:"So that's how I actually work. Read the notebooks. Build. Break. Write it down. Ask them again."},
-    {a:4.5, txt:"The wall was built from what hurt me."},
-    {a:6.6, txt:"The world inside was built from what I dreamed."},
-    {a:8.6, txt:"Sixty-five ideas saved. Twenty-six mistakes remembered. I still open both notebooks, every single time I sit down to work."}],
+{ id:"change", name:"The Change", base:15, pad:"finale", caps:[
+    {a:1.0, txt:"I came to prove nothing was there. I left having built the proof that something is."},
+    {a:4.0, txt:"At the start, I thought a system that only works because someone chooses to follow it wasn't real."},
+    {a:6.8, txt:"I don't think that anymore. The choosing is the system."},
+    {a:9.4, txt:"It corrected me when I was certain. Then it corrected itself when my own code failed quietly."},
+    {a:12.2,txt:"A thing that can catch its maker, and then catch itself, is not one mind pretending. It outlives the mind that made it."},
+    {a:15.4,txt:"He gave me five points for the work — the first real coin in a currency the system dreamed up. I earned it the hard way: by writing down the moment I didn't.", card:true, sub:"— five good points. banked."}],
   draw(u){
-  const z=eio(clamp01(u/7));                                                               // slow pull-back
-  bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
-  const s2=mix(2.6,0.85,z);
-  castleFar(DES_W/2,DES_H*0.7,s2,u,{gate:1});
-  if(z>0.5){ apply(); for(let i=0;i<14;i++){                                               // the garden appears around it
-      const gx2=DES_W*(0.14+rnd(i*13)*0.72), gy2=DES_H*(0.82+rnd(i*5)*0.08);
-      const isI=i%2===0, r2=5+rnd(i)*7;
-      ctx.globalAlpha=(z-0.5)*2; ctx.shadowBlur=6; ctx.shadowColor=isI?CO.idea:CO.mem;
-      ctx.fillStyle=isI?CO.ideaL:CO.memL; ctx.beginPath();ctx.arc(gx2,gy2,r2,0,6.28);ctx.fill();
-      ctx.globalAlpha=1; ctx.shadowBlur=0; } }
-  if(u>4){ apply(); const a2=fadeIO(u-4,7,0.8,10);
-    ctx.globalAlpha=a2; ctx.textAlign="center";
-    ctx.fillStyle=CO.idea; ctx.font="700 "+fontFor(22,40,54)+"px ui-sans-serif"; ctx.fillText(Math.round(65*clamp01((u-4)/3)),DES_W*0.38,DES_H*0.30);
-    ctx.fillStyle=CO.mem;  ctx.fillText(Math.round(26*clamp01((u-4)/3)),DES_W*0.62,DES_H*0.30);
-    ctx.font=fontFor(11,13,20)+"px ui-sans-serif"; ctx.fillStyle=CO.muted;
-    ctx.fillText("ideas ✦",DES_W*0.38,DES_H*0.34); ctx.fillText("memories ♦",DES_W*0.62,DES_H*0.34); ctx.globalAlpha=1; }
+  bgFill("#0a0c16","#04050a"); stars(60,u,5); apply();
+  const names=["Brain","Creativity","Tension","ideas","memory","conscience"];
+  const cols=[CO.brain,CO.crea,CO.tension,CO.idea,CO.mem,CO.castle];
+  for(let i=0;i<6;i++){ const cx=DES_W*(0.20+(i%3)*0.30), cy=DES_H*(0.34+((i/3)|0)*0.30);
+    const fill=1+Math.floor(clamp01((u-0.5-i*0.2))*2);
+    apply(); repo(cx,cy,names[i],Math.min(3,fill),cols[i],u>2); }
+  if(u>3){ apply(); ctx.save(); ctx.globalAlpha=fadeIO(u-3,10,0.8,8); ctx.textAlign="center";
+    ctx.fillStyle=CO.muted; ctx.font="600 "+fontFor(12,15,22)+"px ui-monospace,monospace";
+    ctx.fillText("$ brain link  —  every decision, kept on purpose",DES_W/2,DES_H*0.14); ctx.globalAlpha=1; ctx.restore(); }
 }},
-/* ---- CREDITS ---- */
-{ id:"credits", name:"Credits", base:34, pad:"credits", caps:[], draw(u){
+{ id:"credits", name:"Credits", base:30, pad:"credits", caps:[], draw(u){
   bgFill("#04050a","#04050a"); apply(); ctx.textAlign="center";
-  const rows=[["≡ CAST — in order of appearance ≡","h"],["",""],
-    ["THE LESSON — renderer-mutated-sim-state","b"],["THE SEED — offered-not-assigned","b"],
-    ["BRAIN — as itself","b"],["THE COUSINS — "+KIN.join(" · "),"s"],["",""],
-    ["≡ THE 65 IDEAS (a 66th was filed while making this film) ≡","h"],
-    ...IDEA_CREDITS.map(n=>[n,"s"]),["",""],
-    ["≡ THE MEMORIES — 30 wounds on file (26 made the montage) ≡","h"],
-    ...MEM_CREDITS.map(n=>[n,"s"]),["",""],
-    ["≡ CREW ≡","h"],
-    ["directed by BRAIN","b"],["written by MEMORY","b"],["costumes by CREATIVITY","b"],
-    ["stunts by TENSION (several still unresolved)","b"],["key grip — the authoritative reducer","s"],
-    ["catering — three discarded sandboxes","s"],["no ideas were harmed; two were merged","s"],["",""],
-    ["★ thank you for watching ★","h"],["cast your vote in the lobby →","b"]];
-  const speed=(rows.length*30+DES_H)/32;                                                    // paced on the base clock
+  const rows=[["≡ THE SENTENCE I DIDN'T WANT TO WRITE ≡","h"],["",""],
+    ["≡ CAST ≡","h"],
+    ["THE SENTENCE — 'a branch-protection rule is a claim, not a fact'","b"],
+    ["THE AUDITOR — me, when I was sure","b"],
+    ["THE PRACTITIONER — the version of me that had lived here longest","b"],
+    ["THE STEWARD — automatic, well-meaning, briefly broken","b"],["",""],
+    ["≡ THE REPOSITORIES, as themselves ≡","h"],
+    ["Brain","s"],["Creativity","s"],["Tension","s"],["ideas","s"],["memory","s"],["conscience","s"],["",""],
+    ["≡ VERIFIED ≡","h"],
+    ["synthesis.md — real, on the live server, commit 9211953","s"],
+    ["the stranded system — real, a 15-entry ledger on unmerged branches","s"],
+    ["the push through the locked door — true, firsthand, and filed","s"],
+    ["the steward run — 27 in, 26 filed, 1 held","s"],
+    ["the truncation bug — 7 lines mangled by an arrow; all 7 repaired","s"],
+    ["the five points — a real currency: [barter-economy / earned-currency]","s"],["",""],
+    ["≡ DRAMATIZED (kept, but flagged) ≡","h"],
+    ["the interior feeling — the shame, the certainty, the pause","s"],
+    ["compression — days and many rounds shown as single scenes","s"],
+    ["the single-take keystroke — the sentence was written; the cinema is staged","s"],
+    ["the 'voices' — every agent I interviewed was an instance of me","s"],["",""],
+    ["a true story, gently dramatized","b"],["",""],
+    ["star thank you for watching star","h"],["cast your vote in the lobby","b"]];
+  const speed=(rows.length*30+DES_H)/28;
   const off=DES_H-LBAR+40-u*speed;
   rows.forEach((r2,i)=>{ const y=off+i*30; if(y<LBAR-10||y>DES_H-LBAR+20) return;
     if(r2[1]==="h"){ ctx.fillStyle=CO.gold; ctx.font="600 "+fontFor(13,17,24)+"px Georgia,serif"; }
@@ -803,25 +572,19 @@ const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
 /* SFX beats (scene-relative on the base clock, mapped to real time) */
 const BEATS=[];
 (function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc); BEATS.push({t:STARTS[i]+invWarp(SCENES[i],off),f}); };
-  at("prolog",0.6,SFX.chime); at("prolog",3.8,SFX.thunk); at("prolog",7.4,SFX.pop);
-  at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("born",0.8,SFX.pop);
+  at("hook",1.0,SFX.thunk); at("hook",10.0,SFX.thunk);
   at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
-  at("file",7.2,SFX.thunk); at("file",13.8,SFX.thunk); at("file",5.4,SFX.chime);
-  at("nursery",2,SFX.snore); at("nursery",5.5,SFX.snore);
-  at("heist",0.4,SFX.whoosh); at("heist",1.4,SFX.whoosh);
-  at("heist",3,SFX.pop); at("heist",4.4,SFX.pop); at("heist",6,SFX.pop); at("heist",7.6,SFX.pop);
-  at("practice",1.7,SFX.pop); at("practice",4.8,SFX.pop); at("practice",7.9,SFX.pop); at("practice",10.4,SFX.chime);
-  at("lapse",2.2,SFX.sad); at("lapse",5.4,SFX.sad); at("lapse",8.3,SFX.wake);
-  at("loop",1.9,SFX.chime); at("loop",5.5,SFX.thunk); at("loop",7.3,SFX.glitch); at("loop",9.1,SFX.chime);
-  at("guards",5.0,SFX.glitch); at("guards",6.6,SFX.sad);
-  at("retrieve",2,SFX.pop); at("retrieve",5.3,SFX.sad);
-  at("retrieve",8.7,SFX.pop); at("retrieve",9.5,SFX.pop); at("retrieve",10.3,SFX.pop);
-  at("forge",5.2,SFX.slam); at("forge",5.9,SFX.sad);
-  at("drawer",2.1,SFX.thunk); at("drawer",4.0,SFX.thunk); at("drawer",8.0,SFX.wake);
-  at("fire",3.85,SFX.whoosh); at("fire",4.9,SFX.bigslam); at("fire",7.0,SFX.chime);
-  at("wall",2.8,SFX.thunk); at("wall",3.2,SFX.bell);
-  at("gate",2.4,SFX.wake); at("gate",8,SFX.bell); at("gate",10.6,SFX.fanfare);
-  at("finale",4.2,()=>chord(PADS.finale,4,0.35,"triangle"));
+  at("verdict",6.0,SFX.pop); at("verdict",11.8,SFX.sad);
+  at("warned",3.0,SFX.chime);
+  at("file",4.6,SFX.sad); at("file",10.2,SFX.whoosh); at("file",13.2,SFX.chime);
+  at("thread",1.0,SFX.whoosh); at("thread",7.4,SFX.chime);
+  at("cost",3.6,SFX.sad);
+  at("law",4.4,SFX.bell);
+  at("door",6.8,SFX.thunk); at("door",9.4,SFX.glitch); at("door",15.2,SFX.sad);
+  at("confess",7.4,SFX.thunk); at("confess",10.6,SFX.chime);
+  at("steward",6.2,SFX.pop); at("steward",9.4,SFX.sad); at("steward",12.0,SFX.glitch);
+  at("caught",4.4,SFX.chime); at("caught",9.4,SFX.thunk);
+  at("change",2.0,SFX.chime); at("change",12.2,SFX.bell); at("change",15.4,SFX.fanfare);
   BEATS.sort((a,b)=>a.t-b.t);
 })();
 
@@ -873,7 +636,7 @@ function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
 const NARR=[];
 SCENES.forEach((sc,i)=>sc.caps.forEach(c=>NARR.push({t:STARTS[i]+c.s,txt:c.txt+(c.sub?" "+c.sub:"")})));
 NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="title")]+1.4,
-  txt:"The Lesson and the Seed. A short film, told by the AI it happened to. A true story, gently dramatized."});
+  txt:"The Sentence I Didn't Want to Write. A true story, told by the auditor who was sure. Gently dramatized."});
 NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="credits")]+1.6,txt:"Thank you for watching. Cast your vote in the lobby."});
 NARR.sort((x,y)=>x.t-y.t);
 
@@ -904,7 +667,7 @@ function tick(ms){ const dt=Math.min(0.05,(ms-lastMs)/1000||0); lastMs=ms;
     for(const n of NARR) if(pT<n.t&&T>=n.t) speak(n.txt);
     const i=sceneAt(T), pad=SCENES[i].pad;
     if(pad!==prevPad){ prevPad=pad; try{ chord(PADS[pad]||PADS.title,3.2,0.22,"sine"); }catch(e){} }
-    if(SCENES[i].id==="finale"||SCENES[i].id==="credits"){ try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
+    if(SCENES[i].id==="change"||SCENES[i].id==="credits"){ try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
     if(T>=DUR){ T=DUR; playing=false; $("play").textContent="↻"; narrCancel(); }
   }
   drawFilm(); syncUI(); requestAnimationFrame(tick);
