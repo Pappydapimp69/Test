@@ -87,6 +87,14 @@
   #tskip{position:absolute;right:18px;bottom:18px;background:rgba(0,0,0,.5);border:1px solid var(--line);
     color:var(--muted);border-radius:999px;padding:8px 18px;cursor:pointer;font-size:13px;font-family:var(--serif);font-style:italic}
   #tskip:hover{color:var(--ink);border-color:var(--gold)}
+  #ticket{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 42%,#150f1e 0%,#000 78%);z-index:56;
+    display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;text-align:center}
+  #ticket small{color:var(--muted);letter-spacing:.3em;font-size:11px;font-family:var(--serif)}
+  #ticket h2{margin:0;font-family:var(--serif);font-weight:600;letter-spacing:.08em;font-size:clamp(19px,3.6vw,30px)}
+  #ticket button{background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:999px;
+    padding:14px 34px;font-size:16px;letter-spacing:.13em;cursor:pointer;font-family:var(--serif)}
+  #ticket button:hover{background:rgba(255,217,138,.12)}
+  #ticket p{color:var(--muted);font-size:12px;font-style:italic;font-family:var(--serif);margin:0}
   #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 </style>
 </head>
@@ -159,6 +167,12 @@
   <footer>built inside the Echoes of the Shattered Realm project · every number in both films is real repository data</footer>
 </div>
 <div id="trailer"><canvas id="tc"></canvas><button id="tskip" onclick="endTrailer()">skip →</button></div>
+<div id="ticket" style="display:none">
+  <small>THE SHATTERED REALM PICTURE HOUSE</small>
+  <h2>THE HOUSE LIGHTS ARE DIMMING</h2>
+  <button onclick="takeTicket()">🎟&nbsp;&nbsp;ENTER THE THEATER</button>
+  <p>one tap lets the piano player start — browsers insist</p>
+</div>
 <canvas id="confetti"></canvas>
 <script>
 "use strict";
@@ -294,6 +308,37 @@ function confettiBurst(color){ const cc=$("confetti"),c=cc.getContext("2d");
     c.globalAlpha=1; if(alive)requestAnimationFrame(f); else c.clearRect(0,0,cc.width,cc.height); })(last);
 }
 
+/* ---- the pit orchestra (WebAudio, zero assets) ---- */
+let AC=null,master=null;
+function audioInit(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=0.4; master.connect(AC.destination);}catch(e){AC=null;} }
+function tone(f,dur,type,vol,when){ if(!AC)return; const t0=AC.currentTime+(when||0);
+  const o=AC.createOscillator(),g=AC.createGain(); o.type=type||"triangle"; o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(master);o.start(t0);o.stop(t0+dur+0.05); }
+function click(vol,fc,when){ if(!AC)return; const t0=AC.currentTime+(when||0);
+  const n=AC.createBufferSource(),len=AC.sampleRate*0.03,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+  n.buffer=buf; const f=AC.createBiquadFilter();f.type="highpass";f.frequency.value=fc||3000;
+  const g=AC.createGain();g.gain.value=vol; n.connect(f);f.connect(g);g.connect(master);n.start(t0); }
+/* jaunty rag: oom-pah bass + chord stabs + a wandering pentatonic right hand */
+const N={C2:65.4,G2:98,C3:130.8,E3:164.8,G3:196,A3:220,C4:261.6,E4:329.6,G4:392,A4:440,C5:523.3,D5:587.3,E5:659.3,G5:784,A5:880};
+let vampTimer=null,clatterTimer=null,vampBeat=0;
+function pianoStart(){ if(!AC||vampTimer)return; const BEAT=0.235;                 // ~128bpm eighths
+  vampBeat=0;
+  vampTimer=setInterval(()=>{ const b=vampBeat++;
+    if(b%4===0) tone(b%8===0?N.C2:N.G2,0.22,"triangle",0.20);                      // oom
+    if(b%4===2){ tone(N.C4,0.12,"triangle",0.055); tone(N.E4,0.12,"triangle",0.055); tone(N.G4,0.12,"triangle",0.055); } // pah
+    if(b%2===1&&Math.random()<0.75){ const mel=[N.C5,N.D5,N.E5,N.G5,N.A5,N.E5,N.G4,N.A4];
+      tone(mel[(b+Math.floor(Math.random()*3))%8],0.16,"square",0.028); }
+  },BEAT*1000);
+  clatterTimer=setInterval(()=>{ click(0.012,4200); },92);                          // projector sprockets
+}
+function pianoStop(){ clearInterval(vampTimer);clearInterval(clatterTimer);vampTimer=clatterTimer=null; }
+function thunk(){ click(0.10,900); tone(N.C3,0.18,"sine",0.14); }
+function fanfare(){ [N.C4,N.E4,N.G4,N.C5].forEach((f,i)=>tone(f,0.5,"triangle",0.11,i*0.13)); }
+
 /* ---- the silent-film trailer ---- */
 const TCARDS=[
   {t:0.0,d:3.2,txt:"THE SHATTERED REALM PICTURE HOUSE",sub:"proudly presents"},
@@ -304,17 +349,21 @@ const TCARDS=[
   {t:17.8,d:3.4,txt:"WATCH BOTH. THEN CAST YOUR VOTE.",sub:"one ballot per patron"},
   {t:21.2,d:3.8,txt:"NOW SHOWING",sub:"in the lobby, behind you"}];
 const TDUR=25;
-let tT=0,tOn=false,tLast=0;
-function playTrailer(){ $("trailer").style.display="flex"; tT=0;tOn=true;tLast=performance.now();
+let tT=0,tOn=false,tLast=0,tCard=-1;
+function playTrailer(){ $("trailer").style.display="flex"; tT=0;tOn=true;tLast=performance.now();tCard=-1;
   const tc=$("tc");tc.width=innerWidth*devicePixelRatio;tc.height=innerHeight*devicePixelRatio;
+  audioInit(); pianoStart();
   requestAnimationFrame(tFrame); }
-function endTrailer(){ tOn=false;$("trailer").style.display="none";
+function endTrailer(){ tOn=false;$("trailer").style.display="none"; pianoStop();
   try{localStorage.setItem("srv_trailer_seen","1");}catch(e){} }
+function takeTicket(){ $("ticket").style.display="none"; playTrailer(); }
 function tFrame(now){ if(!tOn)return;
   const dt=Math.min(0.05,(now-tLast)/1000);tLast=now;tT+=dt;
   const tc=$("tc"),c=tc.getContext("2d"),W=tc.width,H=tc.height;
   c.setTransform(1,0,0,1,0,0);c.fillStyle="#050403";c.fillRect(0,0,W,H);
-  const card=TCARDS.find(k=>tT>=k.t&&tT<k.t+k.d);
+  const cIdx=TCARDS.findIndex(k=>tT>=k.t&&tT<k.t+k.d);
+  if(cIdx>=0&&cIdx!==tCard){ tCard=cIdx; if(cIdx===TCARDS.length-1)fanfare(); else thunk(); }
+  const card=cIdx>=0?TCARDS[cIdx]:null;
   if(card){ const u=tT-card.t, a=Math.min(1,u/0.5)*Math.min(1,(card.d-u)/0.5);
     const fl=0.82+0.18*Math.random();                                            // projector flicker
     // iris
@@ -340,9 +389,9 @@ function tFrame(now){ if(!tOn)return;
   if(tT>=TDUR){ endTrailer(); return; }
   requestAnimationFrame(tFrame); }
 
-/* first visit: roll the trailer automatically */
+/* first visit: the ticket booth (the tap unlocks audio, then the trailer rolls with sound) */
 let seen=null; try{ seen=localStorage.getItem("srv_trailer_seen"); }catch(e){}
-if(!seen && !matchMedia("(prefers-reduced-motion: reduce)").matches) playTrailer();
+if(!seen && !matchMedia("(prefers-reduced-motion: reduce)").matches) $("ticket").style.display="flex";
 refreshLock();
 </script>
 </body>
