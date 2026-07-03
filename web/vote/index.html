@@ -112,9 +112,9 @@
       <span class="badge" id="bFilm">✓ watched</span>
       <div class="frame"><canvas id="cFilm" width="600" height="380"></canvas></div>
       <div class="body">
-        <h2>THE SENTENCE I DIDN'T WANT TO WRITE</h2>
-        <div class="tag">an auditor's confession — scored &amp; narrated</div>
-        <div class="meta">DIR. THE MACHINE · ~14 MIN INCL. CREDITS</div>
+        <h2>THE ROBOT WHO KEPT FORGETTING</h2>
+        <div class="tag">how an AI remembers — explained simply, in ~4 min</div>
+        <div class="meta">DIR. THE MACHINE · ~4 MIN · ALL AGES</div>
         <button onclick="location.href='film.html'">▶&nbsp;&nbsp;WATCH</button>
         <div class="credit">the challenger — Claude's own design</div>
       </div>
@@ -144,12 +144,12 @@
     <div id="votepanel">
       <h2>CAST YOUR VOTE</h2>
       <p class="story">Here's the wager: the human designed the <b>Garden</b>. The machine — Claude — bet
-        <b>20 Good Boy Points</b> that its own film, <b>The Sentence I Didn't Want to Write</b>, could beat it
+        <b>20 Good Boy Points</b> that its own film, <b>The Robot Who Kept Forgetting</b>, could beat it
         (plus 5 riding on this very lobby). The humans vote; the points settle. One vote per person,
         on your honor as a moviegoer.</p>
       <div id="ballots">
         <div class="ballot film" onclick="vote('film')">
-          <h3>THE SENTENCE I DIDN'T WANT TO WRITE</h3><p>a confession, a locked door, a choice</p>
+          <h3>THE ROBOT WHO KEPT FORGETTING</h3><p>two jars, one loop, no jargon</p>
           <div class="who">A VOTE FOR THE MACHINE</div>
         </div>
         <div class="ballot garden" onclick="vote('garden')">
@@ -158,7 +158,7 @@
         </div>
       </div>
       <div id="tally">
-        <div class="bar"><span class="lbl">The Sentence</span><span class="track"><span class="fill" id="fFilm" style="background:var(--idea);width:0%"></span></span><span class="n" id="nFilm">–</span></div>
+        <div class="bar"><span class="lbl">The Robot</span><span class="track"><span class="fill" id="fFilm" style="background:var(--idea);width:0%"></span></span><span class="n" id="nFilm">–</span></div>
         <div class="bar"><span class="lbl">Cognitive Garden</span><span class="track"><span class="fill" id="fGarden" style="background:var(--mem);width:0%"></span></span><span class="n" id="nGarden">–</span></div>
       </div>
       <div id="votemsg"></div>
@@ -200,27 +200,28 @@ function blob(c,x,y,r,col,colL,opts){ const o=opts||{}; c.save();
   else for(const s of[-1,1]){c.beginPath();c.arc(x+s*r*0.32,y-r*0.1,er,0,6.28);c.fill();}
   c.restore(); }
 function paintFilmPoster(){ const c=$("cFilm").getContext("2d"),W=600,H=380;
-  c.fillStyle="#07060d";c.fillRect(0,0,W,H);
-  // editor window
-  c.fillStyle="#0b0e17";c.strokeStyle="rgba(216,183,101,.5)";c.lineWidth=2;
-  c.fillRect(40,60,520,220);c.strokeRect(40,60,520,220);
-  c.fillStyle="#141a26";c.fillRect(40,60,520,26);
-  c.fillStyle="#e0655f";c.beginPath();c.arc(58,73,4,0,6.28);c.fill();
-  c.fillStyle="#d8b765";c.beginPath();c.arc(74,73,4,0,6.28);c.fill();
-  c.fillStyle="#79c97e";c.beginPath();c.arc(90,73,4,0,6.28);c.fill();
-  c.fillStyle=MUT;c.font="12px ui-monospace,monospace";c.textAlign="left";
-  c.fillText("lesson.md",64,116);
-  c.fillStyle=GOLD;c.font="600 15px ui-monospace,monospace";
-  c.fillText("A branch-protection rule is a",64,150);
-  c.fillText("claim, not a fact — test the gate",64,176);
-  c.fillText("with the actor it's meant to stop.",64,202);
-  c.fillStyle=GOLD;c.fillRect(556,190,2,18); // caret
-  // a broken lock, gold
-  c.save();c.translate(500,250);c.strokeStyle=GOLD;c.lineWidth=3;c.shadowBlur=12;c.shadowColor=GOLD;
-  c.beginPath();c.arc(0,-8,14,3.14,5.4,false);c.stroke();
-  c.fillStyle="#12141f";c.strokeStyle=GOLD;c.lineWidth=2.4;c.fillRect(-16,0,32,26);c.strokeRect(-16,0,32,26);c.restore();
+  const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0a0c16");g.addColorStop(1,"#05060c");c.fillStyle=g;c.fillRect(0,0,W,H);
+  // little robot
+  c.save();c.translate(W*0.5,H*0.42);
+  c.strokeStyle="#9fb2d6";c.lineWidth=4;c.beginPath();c.moveTo(0,-70);c.lineTo(0,-96);c.stroke();
+  c.fillStyle=GOLD;c.shadowBlur=10;c.shadowColor=GOLD;c.beginPath();c.arc(0,-101,7,0,6.28);c.fill();
+  c.shadowBlur=18;c.shadowColor="#9fb2d6";
+  const rg=c.createRadialGradient(-14,-22,8,0,0,80);rg.addColorStop(0,"#eef2fa");rg.addColorStop(1,"#c3ccdf");
+  c.fillStyle=rg;c.beginPath();c.moveTo(-58,-40);c.arcTo(-58,66,0,66,40);c.arcTo(58,66,58,-40,40);c.arcTo(58,-70,0,-70,40);c.arcTo(-58,-70,-58,-40,40);c.closePath();c.fill();c.shadowBlur=0;
+  c.fillStyle="#10131c";c.beginPath();c.rect(-44,-52,88,60);c.fill();
+  c.fillStyle="#8fd0ff";c.shadowBlur=10;c.shadowColor="#8fd0ff";c.beginPath();c.arc(-18,-22,8,0,6.28);c.fill();c.beginPath();c.arc(18,-22,8,0,6.28);c.fill();
+  c.shadowBlur=0;c.strokeStyle="#8fd0ff";c.lineWidth=3.5;c.beginPath();c.arc(0,-6,12,0.12*3.14,0.88*3.14);c.stroke();
+  c.restore();
+  // two jars
+  function jarP(x,col,colL,emo){ c.save();c.translate(x,H*0.62);
+    c.fillStyle="#2a2f3d";c.fillRect(-24,-42,48,10);
+    c.shadowBlur=12;c.shadowColor=col;c.fillStyle="rgba(190,205,225,.08)";c.strokeStyle="rgba(210,225,240,.55)";c.lineWidth=3;
+    c.beginPath();c.rect(-28,-32,56,66);c.fill();c.stroke();c.shadowBlur=0;
+    for(let k=0;k<4;k++){c.fillStyle=colL;c.fillRect(-18,22-k*9,36,6);}
+    c.font="18px serif";c.textAlign="center";c.fillText(emo,0,-48);c.restore(); }
+  jarP(W*0.36,MEM,MEML,"🩹"); jarP(W*0.64,IDEA,IDEAL,"💡");
   c.fillStyle=INK;c.textAlign="center";c.font="italic 15px Georgia";
-  c.fillText("I locked the door. Then I walked through it.",W/2,326); }
+  c.fillText("every morning, I forget everything.",W/2,H*0.94); }
 function paintGardenPoster(){ const c=$("cGarden").getContext("2d"),W=600,H=380;
   const g=c.createRadialGradient(W/2,H*0.45,40,W/2,H/2,W*0.6);g.addColorStop(0,"#0c1018");g.addColorStop(1,"#05060c");
   c.fillStyle=g;c.fillRect(0,0,W,H);
@@ -255,7 +256,7 @@ function refreshLock(){
   if(open) loadTally();
   let voted=null; try{ voted=localStorage.getItem("srv_voted"); }catch(e){}
   if(voted){ $("ballots").style.opacity=0.45; $("ballots").style.pointerEvents="none";
-    $("votemsg").innerHTML="you voted for <b style='color:var(--gold)'>"+(voted==="film"?"The Sentence I Didn't Want to Write":"The Cognitive Garden")+"</b> — thank you, patron of the arts";
+    $("votemsg").innerHTML="you voted for <b style='color:var(--gold)'>"+(voted==="film"?"The Robot Who Kept Forgetting":"The Cognitive Garden")+"</b> — thank you, patron of the arts";
     $("tally").style.display="block"; }
 }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refreshLock(); });
@@ -289,7 +290,7 @@ async function vote(k){
     showTally(f,g); refreshLock();
   }catch(e){
     $("votemsg").innerHTML="⚠ the ballot box is unreachable from here — please "+
-      "<a href='mailto:"+EMAIL+"?subject=My%20vote%3A%20"+(k==="film"?"The%20Sentence%20I%20Didnt%20Want%20To%20Write":"The%20Cognitive%20Garden")+
+      "<a href='mailto:"+EMAIL+"?subject=My%20vote%3A%20"+(k==="film"?"The%20Robot%20Who%20Kept%20Forgetting":"The%20Cognitive%20Garden")+
       "&body=I%20vote%20for%20"+(k==="film"?"the%20machine%27s%20film":"the%20human%27s%20garden")+"!'>email your vote</a> instead. it counts the same.";
   }
 }
