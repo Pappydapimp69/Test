@@ -15,7 +15,7 @@
     background:radial-gradient(ellipse at 50% 40%, #0c0e18 0%, #000 75%);z-index:20}
   #gate h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:clamp(22px,4.5vw,40px);
     letter-spacing:.06em;margin:0;color:var(--ink);text-align:center;padding:0 20px}
-  #gate p{color:var(--muted);font-size:14px;margin:0;font-style:italic;font-family:Georgia,serif}
+  #gate p{color:var(--muted);font-size:14px;margin:0;font-style:italic;font-family:Georgia,serif;text-align:center;padding:0 16px}
   #gate button{background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:999px;
     padding:13px 34px;font-size:16px;cursor:pointer;letter-spacing:.14em;font-family:Georgia,serif}
   #gate button:hover{background:rgba(255,217,138,.12)}
@@ -50,7 +50,7 @@
 </div>
 <div id="gate">
   <h1>THE LESSON &amp; THE SEED</h1>
-  <p>a short film by a cognitive architecture · based on 26 true stories · ~3½ min</p>
+  <p id="gatesub">a narrated short film · no homework required — it explains everything</p>
   <button id="begin">▶&nbsp;&nbsp;PREMIERE</button>
 </div>
 <script>
@@ -72,6 +72,8 @@ const CO={ink:"#e7e3d8",muted:"#b8bcc6",mem:"#d8b765",memL:"#f2dca0",idea:"#79c9
   gold:"#ffd98a",red:"#e06a5f",crea:"#b58cff",castle:"#9fb2d6",brain:"#efe9dc"};
 function lerpCol(c1,c2,k){ const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   const a=p(c1),b=p(c2); return "rgb("+a.map((v,i)=>Math.round(mix(v,b[i],k))).join(",")+")"; }
+/* resolution-aware type: never smaller than ~minPhys real pixels on the viewer's screen */
+function fontFor(minPhys,designBase,maxD){ return Math.round(Math.min(maxD,Math.max(designBase,minPhys/Math.max(0.2,fit.s)))); }
 
 /* ============ audio (synth score, best-effort) ============ */
 let AC=null,master=null,muted=false;
@@ -101,8 +103,7 @@ const SFX={
   wake:()=>{tone(520,0.5,"sine",0.12,780);tone(780,0.6,"triangle",0.08);},
   fanfare:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.7,"triangle",0.14),i*130));},
 };
-const PADS={ // one gentle pad per act (root chords)
-  cold:[110,165,220], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
+const PADS={ prolog:[130,196,260], cold:[110,165,220], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
   heist:[104,156,208], sleep:[146,220,293], retrieve:[123,185,246], forge:[87,130,174],
   wall:[130,164,196], gate:[146,184,220], finale:[130,196,260,330], credits:[98,147,196,247] };
 
@@ -195,24 +196,35 @@ function grainAndVignette(strength){
   ctx.globalAlpha=1; }
 function bars(){ apply(); ctx.fillStyle="#000";
   ctx.fillRect(-2000,-2,DES_W+4000,LBAR+2); ctx.fillRect(-2000,DES_H-LBAR,DES_W+4000,LBAR+2); }
+function wrapText(txt,maxW){ const words=txt.split(" "); const lines=[]; let line="";
+  for(const w of words){ const t=line?line+" "+w:w;
+    if(ctx.measureText(t).width>maxW&&line){ lines.push(line); line=w; } else line=t; }
+  if(line)lines.push(line); return lines; }
 function card(txt,sub,alpha){ apply(); const W=DES_W,H=DES_H;                              // silent-film intertitle
   ctx.globalAlpha=alpha; ctx.fillStyle="#05050a"; ctx.fillRect(0,0,W,H);
   ctx.strokeStyle="rgba(216,183,101,"+(0.5*alpha)+")"; ctx.lineWidth=2;
-  ctx.strokeRect(W*0.16,H*0.24,W*0.68,H*0.52);
-  ctx.strokeRect(W*0.165,H*0.245,W*0.67,H*0.51);
+  ctx.strokeRect(W*0.13,H*0.2,W*0.74,H*0.6);
+  ctx.strokeRect(W*0.135,H*0.205,W*0.73,H*0.59);
+  const fs=fontFor(18,30,46);
   ctx.fillStyle="rgba(231,227,216,"+alpha+")"; ctx.textAlign="center";
-  ctx.font="italic 600 "+(txt.length>36?26:32)+"px Georgia,serif";
-  const words=txt.split(" "); let line="",lines=[];
-  for(const w of words){ if((line+w).length>34){lines.push(line);line=w+" ";} else line+=w+" "; } lines.push(line);
-  lines.forEach((l,i)=>ctx.fillText(l.trim(),W/2,H*0.44+i*40-(lines.length-1)*18));
-  if(sub){ ctx.font="15px Georgia,serif"; ctx.fillStyle="rgba(184,188,198,"+alpha+")";
-    ctx.fillText(sub,W/2,H*0.66); }
+  ctx.font="italic 600 "+fs+"px Georgia,serif";
+  const lines=wrapText(txt,W*0.62);
+  const lh=fs*1.3, y0=H*0.48-(lines.length-1)*lh/2;
+  lines.forEach((l,i)=>ctx.fillText(l,W/2,y0+i*lh));
+  if(sub){ ctx.font="italic "+fontFor(13,17,26)+"px Georgia,serif"; ctx.fillStyle="rgba(184,188,198,"+alpha+")";
+    ctx.fillText(sub,W/2,H*0.74); }
   ctx.globalAlpha=1; }
-function caption(txt,alpha,y){ apply(); ctx.globalAlpha=alpha??1; ctx.textAlign="center";
-  ctx.font="italic 22px Georgia,serif"; ctx.fillStyle=CO.ink;
-  ctx.shadowBlur=8; ctx.shadowColor="#000";
-  ctx.fillText(txt,DES_W/2,y||DES_H-LBAR-26); ctx.shadowBlur=0; ctx.globalAlpha=1; }
-function fadeIO(u,d,fin,fout){ return Math.min(1,u/(fin||0.5))*Math.min(1,(d-u)/(fout||0.5)); }
+function drawCaption(txt,alpha){ apply(); const fs=fontFor(17,24,42);
+  ctx.font="italic "+fs+"px Georgia,serif";
+  const lines=wrapText(txt,DES_W*0.82), lh=fs*1.32;
+  const y0=DES_H-LBAR-16-(lines.length-1)*lh;
+  ctx.globalAlpha=alpha*0.85; ctx.fillStyle="rgba(3,4,8,.72)";                             // readable backing strip
+  const bw=Math.max(...lines.map(l=>ctx.measureText(l).width))+44;
+  ctx.fillRect(DES_W/2-bw/2,y0-fs-10,bw,lines.length*lh+20);
+  ctx.globalAlpha=alpha; ctx.fillStyle=CO.ink; ctx.textAlign="center";
+  lines.forEach((l,i)=>ctx.fillText(l,DES_W/2,y0+i*lh));
+  ctx.globalAlpha=1; }
+function fadeIO(u,d,fin,fout){ return clamp01(Math.min(1,u/(fin||0.5))*Math.min(1,(d-u)/(fout||0.5))); }
 
 /* ============ scenes ============ */
 function bgFill(c1,c2){ apply(); const g=ctx.createLinearGradient(0,0,0,DES_H);
@@ -220,9 +232,46 @@ function bgFill(c1,c2){ apply(); const g=ctx.createLinearGradient(0,0,0,DES_H);
 function stars(n,T,sd){ apply(); for(let i=0;i<n;i++){ const x=rnd(i+sd)*DES_W,y=rnd(i*3+sd)*DES_H*0.6;
   ctx.globalAlpha=0.25+0.45*Math.abs(Math.sin(T*0.7+i)); ctx.fillStyle="#cfd6e6"; ctx.fillRect(x,y,1.6,1.6);} ctx.globalAlpha=1; }
 
+/* Scene timing is TEXT-DRIVEN: `base` is the choreography clock; captions are anchored
+   on it but each gets a real-time reading window sized by its own length. A scene lasts
+   as long as its words need — the animation holds its final pose while you read. */
 const SCENES=[
-/* ---- 0 · COLD OPEN (13s): the bug happens, in-world ---- */
-{ id:"cold", name:"Cold open", dur:18, base:13, pad:"cold", draw(u){
+/* ---- PROLOGUE: the world, explained from zero ---- */
+{ id:"prolog", name:"Prologue", base:12, pad:"prolog", caps:[
+    {a:0.4, txt:"An AI was asked to build a video game — a little 3D kingdom called the Shattered Realm."},
+    {a:3.6, txt:"As it worked, it kept two notebooks. The gold one is MEMORY: every mistake it ever made, written down so it is never made twice."},
+    {a:7.2, txt:"The green one is IDEAS: every notion it ever had, saved for someday. Even the silly ones."},
+    {a:10.2,txt:"This is the true story of one mistake, and one idea."}],
+  draw(u){
+    bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
+    const pop=t0=>eio(clamp01((u-t0)/0.8));
+    const pb=pop(0.6), pm=pop(3.8), pi=pop(7.4), pc=pop(10.3);
+    if(pb>0){ apply(); ctx.save(); ctx.globalAlpha=pb; brainChar(DES_W*0.5,DES_H*0.34,40*Math.max(0.3,pb),u);
+      ctx.fillStyle=CO.muted; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
+      ctx.fillText("the AI",DES_W*0.5,DES_H*0.34+64); ctx.restore(); }
+    if(pm>0){ apply(); ctx.save(); ctx.globalAlpha=pm;                                     // MEMORY book
+      const x=DES_W*0.26,y=DES_H*0.56; ctx.shadowBlur=14;ctx.shadowColor=CO.mem;
+      ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2.5;
+      ctx.fillRect(x-46,y-32,92,64); ctx.strokeRect(x-46,y-32,92,64);
+      ctx.beginPath();ctx.moveTo(x,y-32);ctx.lineTo(x,y+32);ctx.stroke();
+      face(x-22,y-2,13,{}); face(x+22,y-2,13,{});
+      ctx.fillStyle=CO.mem; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
+      ctx.fillText("MEMORY — the mistakes",x,y+58); ctx.restore(); }
+    if(pi>0){ apply(); ctx.save(); ctx.globalAlpha=pi;
+      seed(DES_W*0.74,DES_H*0.55,26,false,u,{ph:2}); seed(DES_W*0.80,DES_H*0.60,16,false,u,{ph:5});
+      ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(13,15,24)+"px Georgia,serif"; ctx.textAlign="center";
+      ctx.fillText("IDEAS — the someday pile",DES_W*0.76,DES_H*0.55+66); ctx.restore(); }
+    if(pc>0){ apply(); ctx.save(); ctx.globalAlpha=pc; castleFar(DES_W*0.5,DES_H*0.92,0.7,u,{});
+      ctx.fillStyle=CO.castle; ctx.font=fontFor(12,14,22)+"px Georgia,serif"; ctx.textAlign="center";
+      ctx.fillText("the game",DES_W*0.5,DES_H*0.96); ctx.restore(); }
+  }},
+/* ---- COLD OPEN: the bug happens, in-world ---- */
+{ id:"cold", name:"The Bug", base:13, pad:"cold", caps:[
+    {a:0.8, txt:"The game had a bug. Knights kept falling through the floor."},
+    {a:4.8, txt:"The cause: one typo. The graphics code was overwriting the game's real state."},
+    {a:8.3, txt:"In this story, bugs look like this — small, red, and frightened."},
+    {a:10.6,txt:"This is a bug. By the end of this film, it will be holding up a castle.", card:true, sub:"— the narrator, who has seen the ending"}],
+  draw(u){
   const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
   bgFill("#0b0e1a","#04050a"); apply();
   ctx.save();                                                        // fake-3D corridor
@@ -240,31 +289,32 @@ const SCENES=[
   apply(); knight(kx,ky,74,fz,gl);
   if(gl){ apply(); for(let i=0;i<10;i++){ ctx.globalAlpha=Math.random()*0.3;               // glitch static
       ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
-      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*200+30,Math.random()*2+1);} ctx.globalAlpha=1;
-    caption("ZONE: the shattered keep · build 4c1a — the renderer just wrote to the sim",1,DES_H-LBAR-26); }
+      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*200+30,Math.random()*2+1);} ctx.globalAlpha=1; }
   if(fz>=8){                                                          // the Lesson is born
     const bu=Math.min(1,(fz-8)/0.7), lx=kx+40, ly=DES_H*0.62-30*eio(bu);
     apply(); lesson(lx,ly,16+8*eio(bu),0,fz,{});
-    if(fz>8.6) caption("…and something small and red crawled out of the crack.",fadeIO(fz-8.6,4,0.4,2));
   }
-  if(u>10.2){ apply(); ctx.fillStyle="rgba(0,0,0,0.45)"; ctx.fillRect(0,0,DES_W,DES_H);     // freeze frame
-    card("This is a bug. In two minutes, it will be holding up a castle.","— the narrator, who has seen the ending",fadeIO(u-10.2,2.8,0.4,0.5)); }
+  if(u>10.2){ apply(); ctx.fillStyle="rgba(0,0,0,0.45)"; ctx.fillRect(0,0,DES_W,DES_H); }   // freeze dim; card comes from caps
 }},
-/* ---- 1 · TITLE (6s) ---- */
-{ id:"title", name:"Title", dur:8, base:6, pad:"title", draw(u){
+/* ---- TITLE ---- */
+{ id:"title", name:"Title", base:7, pad:"title", caps:[], draw(u){
   bgFill("#04050a","#04050a"); apply();
-  const a=fadeIO(u,6,0.8,0.8), fl=0.92+0.08*Math.random();
+  const a=fadeIO(u,7,0.8,0.8), fl=0.92+0.08*Math.random();
   ctx.globalAlpha=a*fl; ctx.textAlign="center";
-  ctx.fillStyle=CO.ink; ctx.font="600 54px Georgia,serif";
+  ctx.fillStyle=CO.ink; ctx.font="600 "+fontFor(26,54,72)+"px Georgia,serif";
   ctx.fillText("THE LESSON & THE SEED",DES_W/2,DES_H*0.44);
-  ctx.font="italic 19px Georgia,serif"; ctx.fillStyle=CO.muted;
+  ctx.font="italic "+fontFor(14,19,30)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
   ctx.fillText("a short film by a cognitive architecture",DES_W/2,DES_H*0.54);
-  ctx.font="14px Georgia,serif";
-  ctx.fillText("based on 26 true stories",DES_W/2,DES_H*0.60);
+  ctx.font=fontFor(11,14,22)+"px Georgia,serif";
+  ctx.fillText("based on 26 true stories from its own logs",DES_W/2,DES_H*0.60);
   ctx.globalAlpha=1;
 }},
-/* ---- 2 · ACT I: THE FILING (16s) ---- */
-{ id:"file", name:"Act I — The Filing", dur:22, base:16, pad:"file", draw(u){
+/* ---- ACT I: THE FILING ---- */
+{ id:"file", name:"Act I — The Filing", base:16, pad:"file", caps:[
+    {a:1.5, txt:"The AI caught the bug before it could bite twice."},
+    {a:6.5, txt:"Every mistake gets a name and a card in the MEMORY library. This one: 'the renderer touched the game's state.'"},
+    {a:11.5,txt:"Filed forever. Most cards are never needed again. This one will be."}],
+  draw(u){
   bgFill("#0a0912","#04050a");
   apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
   const lx=DES_W*0.42, ly=DES_H*0.66;
@@ -294,12 +344,12 @@ const SCENES=[
     ctx.fillStyle=CO.mem; ctx.beginPath();ctx.arc(cx,oy+18,3.4,0,6.28);ctx.fill(); }
   ctx.fillStyle=CO.muted; ctx.font="12px Georgia,serif"; ctx.textAlign="center";
   ctx.fillText("M E M O R Y",cx,DES_H*0.40);
-  if(u<5) caption("Brain caught it before it could bite twice.",fadeIO(u,5,1,0.6));
-  else if(u<11) caption("Every pain gets a name, and a card in the library.",fadeIO(u-5,6,0.6,0.6));
-  else caption("Filed. Most cards sleep forever. This one won't.",fadeIO(u-11,5,0.6,0.5));
 }},
-/* ---- 3 · ACT II-a: THE NURSERY (9s) ---- */
-{ id:"nursery", name:"Act II — The Nursery", dur:13, base:9, pad:"nursery", draw(u){
+/* ---- ACT II-a: THE NURSERY ---- */
+{ id:"nursery", name:"Act II — The Nursery", base:9, pad:"nursery", caps:[
+    {a:0.8, txt:"Meanwhile: the IDEAS notebook. Twenty-nine ideas asleep, none of them used yet."},
+    {a:5.0, txt:"This one is ours: 'let players CHOOSE their quests instead of being handed them.' Remember the leaf. It sleeps through everything."}],
+  draw(u){
   bgFill("#071008","#04050a"); apply();
   ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
   for(let i=0;i<29;i++){ const col=i%8, row=(i/8)|0;                                       // 29 sleeping seeds
@@ -312,11 +362,13 @@ const SCENES=[
   ctx.fillStyle=sp; ctx.fillRect(0,0,DES_W,DES_H);
   ctx.fillStyle=CO.muted; ctx.font="600 12px ui-monospace,monospace"; ctx.textAlign="center";
   ctx.fillText("offered-not-assigned",DES_W*0.5,DES_H*0.62+52);
-  if(u<4.5) caption("Meanwhile: the idea nursery. Twenty-nine seeds, all asleep.",fadeIO(u,4.5,1,0.5));
-  else caption("This one is ours. Remember the leaf. It sleeps through everything.",fadeIO(u-4.5,4.5,0.5,0.5));
 }},
-/* ---- 4 · ACT II-b: THE HEIST (12s) ---- */
-{ id:"heist", name:"Act II — The Heist", dur:17, base:12, pad:"heist", draw(u){
+/* ---- ACT II-b: THE INHERITANCE ---- */
+{ id:"heist", name:"Act II — The Inheritance", base:12, pad:"heist", caps:[
+    {a:0.8, txt:"The AI also studied its owner's OLD projects — a dog soundboard, a virtual dog park."},
+    {a:5.4, txt:"It kept everything they had to teach: fifteen ideas and ten documented mistakes, poured into the notebooks in one afternoon."},
+    {a:9.2, txt:"The old projects stayed behind. What they knew came along."}],
+  draw(u){
   bgFill("#0a0710","#04050a"); apply();
   for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
     const g=ctx.createRadialGradient(sx,DES_H*0.75,20,sx,DES_H*0.72,220);
@@ -328,7 +380,7 @@ const SCENES=[
   ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🔊",0,0); ctx.restore();
   ctx.save(); ctx.translate(mix(DES_W+80,DES_W*0.7,inB),DES_H*0.62); ctx.rotate(Math.sin(u*4+2)*0.05*(u<2.6?1:0));
   ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🌳",0,0); ctx.restore();
-  ctx.font="13px Georgia,serif"; ctx.fillStyle=CO.muted;
+  ctx.font=fontFor(11,13,20)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
   if(u>1.8){ ctx.fillText("SHADOW — a soundboard",DES_W*0.3,DES_H*0.72);
     ctx.fillText("DOG PARK 3D — a park",DES_W*0.7,DES_H*0.72); }
   if(u>2.6){                                                                                // loot pours out
@@ -343,23 +395,24 @@ const SCENES=[
   ctx.strokeStyle=CO.mem; ctx.strokeRect(DES_W*0.52,DES_H*0.76,80,54); ctx.fillRect(DES_W*0.52,DES_H*0.76,80,54);
   ctx.fillStyle=CO.idea; ctx.font="11px ui-sans-serif"; ctx.fillText("IDEAS",DES_W*0.42+40,DES_H*0.76+70);
   ctx.fillStyle=CO.mem; ctx.fillText("MEMORY",DES_W*0.52+40,DES_H*0.76+70);
-  if(u<5) caption("Then two strangers arrived, dragging sacks of everything they knew.",fadeIO(u,5,1,0.5));
-  else if(u<9) caption("Fifteen ideas. Ten wounds. Dumped in a single afternoon.",fadeIO(u-5,4,0.5,0.5));
-  else caption("The projects were left behind. The knowledge wasn't.",fadeIO(u-9,3,0.5,0.5));
 }},
-/* ---- 5 · gag card (4s) ---- */
-{ id:"gag", name:"Intertitle", dur:6, base:4, pad:"sleep", draw(u){
-  card("THE SEED — still asleep. Contributing nothing.","(it will be worth the wait)",fadeIO(u,4,0.5,0.5));
-}},
-/* ---- 6 · ACT III: THE RETRIEVAL (14s) ---- */
-{ id:"retrieve", name:"Act III — The Retrieval", dur:19, base:14, pad:"retrieve", draw(u){
+/* ---- gag card ---- */
+{ id:"gag", name:"Intertitle", base:4, pad:"sleep", caps:[
+    {a:0.6, txt:"THE IDEA — still asleep. Contributing nothing.", card:true, sub:"(it will be worth the wait)"}],
+  draw(u){ bgFill("#04050a","#04050a"); }},
+/* ---- ACT III: THE RETRIEVAL ---- */
+{ id:"retrieve", name:"Act III — The Retrieval", base:14, pad:"retrieve", caps:[
+    {a:1.0, txt:"Months later, the game needed better testing. The AI went looking through MEMORY for anything it knew about being fooled."},
+    {a:5.2, txt:"Not this card… not this one…"},
+    {a:7.7, txt:"This one. The bug from the beginning of our story."},
+    {a:11.2,txt:"'Me? I'm a one-character typo!' — and up it went."}],
+  draw(u){
   bgFill("#0a0912","#04050a"); apply();
   for(let i=0;i<4;i++){ const cx=DES_W*(0.2+i*0.2);                                        // library stacks
     ctx.fillStyle="#141826"; ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=1.5;
     ctx.fillRect(cx-56,DES_H*0.34,112,DES_H*0.44); ctx.strokeRect(cx-56,DES_H*0.34,112,DES_H*0.44);
     for(let r2=0;r2<5;r2++){ ctx.strokeStyle="rgba(216,183,101,.28)";
       ctx.strokeRect(cx-46,DES_H*0.34+12+r2*36,92,26); } }
-  const swp=Math.min(1,u/8), sx=mix(DES_W*0.2,DES_W*0.8,(Math.sin(u*0.9)*0.5+0.5)*swp*0+((u/8)%1)*swp)||DES_W*0.2;
   const lx=DES_W*(0.2+Math.min(3,Math.floor(u/2))*0.2);                                    // light visits stacks
   apply(); const bx=DES_W*0.5, by=DES_H*0.16; brainChar(bx,by,30,u);
   const tx=u<8?lx:DES_W*0.6;
@@ -367,20 +420,19 @@ const SCENES=[
   g.addColorStop(0,"rgba(239,233,220,.4)"); g.addColorStop(1,"rgba(239,233,220,.03)");
   ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-8,by); ctx.lineTo(bx+8,by);
   ctx.lineTo(tx+72,DES_H*0.62); ctx.lineTo(tx-72,DES_H*0.62); ctx.closePath(); ctx.fill();
-  if(u<7.5){ const which=Math.min(3,Math.floor(u/2));
-    if(which<2) caption('"…not you. …not you."',fadeIO(u,7.5,1,0.3));
-    else caption('"…not you…"',0.9); }
   if(u>=7.5){                                                                              // found: yanked out
     const yu=clamp01((u-7.5)/2.2), stretch=1+Math.sin(clamp01(yu*2)*3.14)*0.55;
     const px=DES_W*0.6, py=mix(DES_H*0.56,DES_H*0.3,eio(yu));
     apply(); ctx.save(); ctx.translate(px,py); ctx.scale(1/Math.sqrt(stretch),stretch);
     lesson(0,0,24,1,u,{o:yu>0.3,closed:yu<0.15}); ctx.restore();
-    if(u<11) caption('"…YOU."',1);
-    else caption('"wait — me? I\'m a one-character typo!" — and up it went.',fadeIO(u-11,3,0.4,0.4));
   }
 }},
-/* ---- 7 · ACT IV: THE COLLISION (16s) ---- */
-{ id:"forge", name:"Act IV — The Collision", dur:21, base:16, pad:"forge", draw(u){
+/* ---- ACT IV: THE COLLISION ---- */
+{ id:"forge", name:"Act IV — The Collision", base:16, pad:"forge", caps:[
+    {a:1.0, txt:"Three OTHER testing mistakes were pulled from the library too. On the surface, all four looked different."},
+    {a:4.6, txt:"But they were the same mistake wearing four costumes: trusting a test that couldn't actually fail."},
+    {a:12.8,txt:"Four mistakes, forged into one rule the AI now always follows. That is what a memory is FOR."}],
+  draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
     ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
@@ -408,17 +460,13 @@ const SCENES=[
   }
   const wo=u>10.6?clamp01((u-10.6)/0.7)*clamp01((12.6-u)/1.3):0;                            // whiteout
   if(wo>0){ apply(); ctx.globalAlpha=wo; ctx.fillStyle="#fff8ec"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
-  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false);                           // the pattern gem
-    if(u>12.6) caption("Four wounds. One shape. The forge only keeps what generalizes.",fadeIO(u-12.6,3.4,0.5,0.4)); }
-  else if(u<5.5) caption("The forge. Three cousins answered the summons — every one a testing scar.",fadeIO(u,5.5,1,0.4));
-  const sh=[...SL,11].reduce((s,t2)=>Math.max(s,Math.max(0,0.6-Math.abs(u-t2))*14),0);      // screen shake
-  if(sh>0.5){ ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-    ctx.translate((Math.random()-0.5)*sh*fit.dpr,(Math.random()-0.5)*sh*fit.dpr);
-    // (shake applied by translating the backing store copy is overkill; the flash+rings carry it)
-    ctx.restore(); }
+  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                         // the pattern gem
 }},
-/* ---- 8 · ACT V-a: THE WALL (10s) ---- */
-{ id:"wall", name:"Act V — The Wall", dur:14, base:10, pad:"wall", draw(u){
+/* ---- ACT V-a: THE WALL ---- */
+{ id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
+    {a:1.0, txt:"The new rule was built into the game's defenses — the tests that guard every change."},
+    {a:5.0, txt:"What hurt us now holds the wall. It looks pretty happy about it."}],
+  draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
   const set=eio(clamp01((u-1.2)/1.8));                                                     // gem flies to slot
@@ -427,11 +475,13 @@ const SCENES=[
   if(u>3&&u<6){ const rp=(u-3)/3;                                                          // light ripples along mortar
     apply(); ctx.globalAlpha=(1-rp)*0.7; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(DES_W/2+68*1.7+18,DES_H*0.74-57*1.7+12,rp*300,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
-  if(u<4) caption("They set it where the wall had failed.",fadeIO(u,4,1,0.4));
-  else caption("What hurt us now holds the wall. It looks pretty happy about it.",fadeIO(u-4,6,0.5,0.5));
 }},
-/* ---- 9 · ACT V-b: THE GATE (14s) ---- */
-{ id:"gate", name:"Act V — The Gate", dur:19, base:14, pad:"gate", draw(u){
+/* ---- ACT V-b: THE GATE ---- */
+{ id:"gate", name:"Act V — The Gate", base:14, pad:"gate", caps:[
+    {a:1.9, txt:"And the sleeping idea? The game finally had room for it. After a whole story of sleeping — the eyes opened."},
+    {a:5.4, txt:"It knew exactly where it was going. It had always known."},
+    {a:8.9, txt:"It became a character: Doran the smith, who OFFERS you a quest instead of assigning one. Your choice. The idea, playable."}],
+  draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
   const walk=eio(clamp01((u-4)/5));
@@ -449,13 +499,13 @@ const SCENES=[
         ctx.globalAlpha=1-k2; ctx.fillStyle=[CO.gold,CO.ideaL,CO.crea][j%3];
         ctx.beginPath();ctx.arc(fx2+Math.cos(a2)*k2*70,fy2+Math.sin(a2)*k2*70,2.6,0,6.28);ctx.fill(); }
       ctx.globalAlpha=1; } }
-  if(u<1.6) caption("…and back in the nursery: silence.",fadeIO(u,1.6,0.6,0.2));
-  else if(u<4) caption("After four acts of sleeping — the eyes open.",fadeIO(u-1.6,2.4,0.4,0.3));
-  else if(u<8) caption("It knew exactly where it was going. It had always known.",fadeIO(u-4,4,0.5,0.4));
-  else caption("A smith named Doran offers you a bounty, if you want it. No pressure.",fadeIO(u-8,6,0.5,0.6));
 }},
-/* ---- 10 · FINALE (11s) ---- */
-{ id:"finale", name:"Finale", dur:15, base:11, pad:"finale", draw(u){
+/* ---- FINALE ---- */
+{ id:"finale", name:"Finale", base:11, pad:"finale", caps:[
+    {a:0.8, txt:"The wall was built from what hurt us."},
+    {a:4.5, txt:"The world inside was built from what we dreamed."},
+    {a:8.4, txt:"65 ideas saved. 26 mistakes remembered. You just watched one of each come true."}],
+  draw(u){
   const z=eio(clamp01(u/7));                                                               // slow pull-back
   bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
   const s2=mix(2.6,0.85,z);
@@ -468,15 +518,13 @@ const SCENES=[
       ctx.globalAlpha=1; ctx.shadowBlur=0; } }
   if(u>4){ apply(); const a2=fadeIO(u-4,7,0.8,10);
     ctx.globalAlpha=a2; ctx.textAlign="center";
-    ctx.fillStyle=CO.idea; ctx.font="700 40px ui-sans-serif"; ctx.fillText(Math.round(65*clamp01((u-4)/3)),DES_W*0.38,DES_H*0.30);
+    ctx.fillStyle=CO.idea; ctx.font="700 "+fontFor(22,40,54)+"px ui-sans-serif"; ctx.fillText(Math.round(65*clamp01((u-4)/3)),DES_W*0.38,DES_H*0.30);
     ctx.fillStyle=CO.mem;  ctx.fillText(Math.round(26*clamp01((u-4)/3)),DES_W*0.62,DES_H*0.30);
-    ctx.font="13px ui-sans-serif"; ctx.fillStyle=CO.muted;
+    ctx.font=fontFor(11,13,20)+"px ui-sans-serif"; ctx.fillStyle=CO.muted;
     ctx.fillText("ideas ✦",DES_W*0.38,DES_H*0.34); ctx.fillText("memories ♦",DES_W*0.62,DES_H*0.34); ctx.globalAlpha=1; }
-  if(u<5) caption("The wall was built from what hurt us.",fadeIO(u,5,1.2,0.4));
-  else caption("The world inside was built from what we dreamed.",fadeIO(u-5,6,0.5,1.5));
 }},
-/* ---- 11 · CREDITS (34s) ---- */
-{ id:"credits", name:"Credits", dur:40, base:34, pad:"credits", draw(u){
+/* ---- CREDITS ---- */
+{ id:"credits", name:"Credits", base:34, pad:"credits", caps:[], draw(u){
   bgFill("#04050a","#04050a"); apply(); ctx.textAlign="center";
   const rows=[["≡ CAST — in order of appearance ≡","h"],["",""],
     ["THE LESSON — renderer-mutated-sim-state","b"],["THE SEED — offered-not-assigned","b"],
@@ -490,19 +538,30 @@ const SCENES=[
     ["stunts by TENSION (several still unresolved)","b"],["key grip — the authoritative reducer","s"],
     ["catering — three discarded sandboxes","s"],["no ideas were harmed; two were merged","s"],["",""],
     ["★ thank you for watching ★","h"],["cast your vote in the lobby →","b"]];
-  const speed=(rows.length*30+DES_H)/32;                                                    // fits the scene
+  const speed=(rows.length*30+DES_H)/32;                                                    // paced on the base clock
   const off=DES_H-LBAR+40-u*speed;
   rows.forEach((r2,i)=>{ const y=off+i*30; if(y<LBAR-10||y>DES_H-LBAR+20) return;
-    if(r2[1]==="h"){ ctx.fillStyle=CO.gold; ctx.font="600 17px Georgia,serif"; }
-    else if(r2[1]==="b"){ ctx.fillStyle=CO.ink; ctx.font="15px Georgia,serif"; }
-    else { ctx.fillStyle=CO.muted; ctx.font="13px ui-monospace,monospace"; }
+    if(r2[1]==="h"){ ctx.fillStyle=CO.gold; ctx.font="600 "+fontFor(13,17,24)+"px Georgia,serif"; }
+    else if(r2[1]==="b"){ ctx.fillStyle=CO.ink; ctx.font=fontFor(12,15,22)+"px Georgia,serif"; }
+    else { ctx.fillStyle=CO.muted; ctx.font=fontFor(11,13,19)+"px ui-monospace,monospace"; }
     ctx.fillText(r2[0],DES_W/2,y); });
 }}];
+
+/* ---- text-driven timing: a scene lasts as long as its words need ---- */
+const CHOREO_F=1.45;                                    // pleasant fixed slow-down for the animation itself
+function readTime(t){ return Math.min(11,Math.max(3.0,1.5+t.length*0.062)); }
+SCENES.forEach(sc=>{
+  const F=sc.choreoF||CHOREO_F; sc.k=1/F;
+  let end=0;
+  sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end+0.35); c.d=readTime(c.txt+(c.sub||"")); end=c.s+c.d; });
+  sc.dur=Math.max(sc.base*F, end+0.9);
+});
 const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
 
-/* SFX beats (absolute film time) */
+/* SFX beats (scene-relative on the base clock, mapped to real time) */
 const BEATS=[];
-(function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc), F=SCENES[i].dur/(SCENES[i].base||SCENES[i].dur); BEATS.push({t:STARTS[i]+off*F,f}); };
+(function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc); BEATS.push({t:STARTS[i]+off/SCENES[i].k,f}); };
+  at("prolog",0.6,SFX.chime); at("prolog",3.8,SFX.thunk); at("prolog",7.4,SFX.pop);
   at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("cold",8.1,SFX.pop);
   at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
   at("file",7.2,SFX.thunk); at("file",13.8,SFX.thunk); at("file",5.4,SFX.chime);
@@ -520,7 +579,7 @@ const BEATS=[];
 })();
 
 /* ============ the narrator (Web Speech API — the machine reads its own film) ============ */
-let narrOn=true,_voice=null,_voiceTried=false;
+let narrOn=true,_voice=null;
 function pickVoice(){ if(_voice||!("speechSynthesis" in window))return _voice;
   const vs=speechSynthesis.getVoices(); if(!vs.length)return null;
   const en=vs.filter(v=>/^en/i.test(v.lang));
@@ -532,45 +591,19 @@ function narrCancel(){ try{ if("speechSynthesis" in window) speechSynthesis.canc
   if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.3); }
 function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
   try{ speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(txt); const v=pickVoice(); if(v)u.voice=v;
+    const u=new SpeechSynthesisUtterance(txt.replace(/[✦♦★≡→]/g,"")); const v=pickVoice(); if(v)u.voice=v;
     u.rate=0.97; u.pitch=1.0; u.volume=1;
     u.onstart=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.14,AC.currentTime,0.15); };   // duck the score
     u.onend=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.4); };
     speechSynthesis.speak(u);
   }catch(e){} }
+/* narration = the captions themselves, spoken as each appears */
 const NARR=[];
-(function(){ const nat=(sc,off,txt)=>{ const i=SCENES.findIndex(s=>s.id===sc), F=SCENES[i].dur/(SCENES[i].base||SCENES[i].dur); NARR.push({t:STARTS[i]+off*F,txt}); };
-  nat("cold",0.5,"This is the world we built. A small kingdom, running on a machine.");
-  nat("cold",4.6,"And this is the day the renderer wrote where it should not.");
-  nat("cold",8.2,"Every bug is born small, red, and frightened.");
-  nat("cold",10.5,"Remember this one. In two minutes, it will be holding up a castle.");
-  nat("title",1.0,"The Lesson and the Seed. A short film, by a cognitive architecture. Based on twenty-six true stories.");
-  nat("file",1.5,"Brain caught it before it could bite twice.");
-  nat("file",6.5,"Every pain gets a name, and a card in the library.");
-  nat("file",11.5,"Filed. Most cards sleep forever. This one won't.");
-  nat("nursery",0.8,"Meanwhile, in the idea nursery, twenty-nine seeds lay asleep.");
-  nat("nursery",5.0,"This one is ours. Remember the leaf. It sleeps through everything.");
-  nat("heist",0.6,"Then two strangers arrived, dragging sacks of everything they knew.");
-  nat("heist",5.4,"Fifteen ideas. Ten wounds. Dumped in a single afternoon.");
-  nat("heist",9.2,"The projects were left behind. The knowledge wasn't.");
-  nat("gag",1.0,"The seed, meanwhile, contributed nothing.");
-  nat("retrieve",1.0,"Months later, Brain came looking for something specific.");
-  nat("retrieve",3.6,"Not you. Not you.");
-  nat("retrieve",7.7,"You.");
-  nat("retrieve",11.2,"Wait. Me? I'm a one-character typo! And up it went.");
-  nat("forge",1.0,"The forge. Three cousins answered the summons. Every one of them, a testing scar.");
-  nat("forge",12.8,"Four wounds. One shape. The forge only keeps what generalizes.");
-  nat("wall",1.0,"They set it where the wall had failed.");
-  nat("wall",5.0,"What hurt us now holds the wall. It looks pretty happy about it.");
-  nat("gate",1.9,"After four acts of sleeping, the eyes opened.");
-  nat("gate",4.6,"It knew exactly where it was going. It had always known.");
-  nat("gate",8.5,"A smith named Doran offers you a bounty. If you want it. No pressure.");
-  nat("finale",0.8,"The wall was built from what hurt us.");
-  nat("finale",5.4,"The world inside was built from what we dreamed.");
-  nat("finale",8.4,"Sixty-five ideas. Twenty-six memories. One of them is holding up the wall.");
-  nat("credits",1.2,"Thank you for watching. Cast your vote in the lobby.");
-  NARR.sort((x,y)=>x.t-y.t);
-})();
+SCENES.forEach((sc,i)=>sc.caps.forEach(c=>NARR.push({t:STARTS[i]+c.s,txt:c.txt+(c.sub?" "+c.sub:"")})));
+NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="title")]+1.4,
+  txt:"The Lesson and the Seed. A short film, by a cognitive architecture. Based on twenty-six true stories from its own logs."});
+NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="credits")]+1.6,txt:"Thank you for watching. Cast your vote in the lobby."});
+NARR.sort((x,y)=>x.t-y.t);
 
 /* ============ player ============ */
 let T=0,prevPad=null,playing=false,lastMs=0,scrubDrag=false,started=false;
@@ -578,8 +611,10 @@ function sceneAt(t){ let i=SCENES.length-1; for(let j=0;j<SCENES.length;j++) if(
 function drawFilm(){
   ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   const i=sceneAt(T), sc=SCENES[i], u=T-STARTS[i];
-  const k=(sc.base||sc.dur)/sc.dur;          // scenes stretched for readability; choreography scales with them
-  apply(); sc.draw(Math.min(u,sc.dur)*k);
+  apply(); sc.draw(Math.min(u*sc.k,sc.base));            // choreography holds its final pose while text finishes
+  const cap=sc.caps.find(c=>u>=c.s&&u<c.s+c.d);
+  if(cap){ const a=fadeIO(u-cap.s,cap.d,0.45,0.6);
+    if(cap.card) card(cap.txt,cap.sub,a); else drawCaption(cap.txt,a); }
   grainAndVignette(1); bars();
   apply(); ctx.textAlign="left"; ctx.fillStyle="rgba(184,188,198,.65)"; ctx.font="11px Georgia,serif";
   ctx.fillText(sc.name,16,DES_H-LBAR+30);
@@ -605,11 +640,14 @@ $("narr").onclick=()=>{ narrOn=!narrOn; $("narr").style.opacity=narrOn?1:0.4; if
 $("scrub").addEventListener("input",e=>{ scrubDrag=true; narrCancel(); T=e.target.value/1000*DUR; drawFilm(); });
 $("scrub").addEventListener("change",()=>{ scrubDrag=false; });
 STARTS.forEach((s,i)=>{ if(i===0)return; const el=document.createElement("i"); el.style.left=(s/DUR*100)+"%"; $("chap").appendChild(el); });
+$("gatesub").textContent="a narrated short film · ~"+Math.round(DUR/60)+" min · no homework required — it explains everything";
 $("begin").onclick=()=>{ $("gate").style.display="none"; audioInit(); pickVoice(); started=true;
   if(REDUCE){ T=STARTS[STARTS.length-2]; drawFilm(); playing=false; $("play").textContent="▶";
     try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
   else { T=0; playing=true; } };
-window.__film={ seek:t=>{T=t;drawFilm();}, dur:()=>DUR, scene:()=>SCENES[sceneAt(T)].id, state:()=>({T,DUR,playing}) };
+window.__film={ seek:t=>{T=t;drawFilm();}, dur:()=>DUR, scene:()=>SCENES[sceneAt(T)].id,
+  cap:()=>{ const i=sceneAt(T),sc=SCENES[i],u=T-STARTS[i]; const c=sc.caps.find(c=>u>=c.s&&u<c.s+c.d); return c?c.txt.slice(0,44):null; },
+  state:()=>({T,DUR,playing}) };
 requestAnimationFrame(tick);
 </script>
 </body>
