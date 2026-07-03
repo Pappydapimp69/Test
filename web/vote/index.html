@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Shattered Realm Picture House</title>
+<style>
+  :root{ --bg:#04050a; --ink:#e7e3d8; --muted:#b8bcc6; --line:rgba(255,255,255,.14);
+    --mem:#d8b765; --idea:#79c97e; --gold:#ffd98a; --red:#d2685f; --crea:#b58cff;
+    --serif:Georgia,"Times New Roman",serif; }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+  body{overflow-x:hidden}
+  /* ---- curtains & marquee ---- */
+  #stage{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1a1020 0%, transparent 55%),
+      linear-gradient(#04050a,#07060d 60%,#04050a)}
+  .curtain{position:absolute;top:0;bottom:0;width:11vw;min-width:70px;z-index:1;pointer-events:none;
+    background:repeating-linear-gradient(90deg,#3d1220 0 14px,#5a1c2e 14px 24px,#2c0d18 24px 34px);
+    box-shadow:inset 0 -40px 60px rgba(0,0,0,.8)}
+  .curtain.l{left:0;border-right:6px solid #1c0a12;border-radius:0 0 40% 0}
+  .curtain.r{right:0;border-left:6px solid #1c0a12;border-radius:0 0 0 40%}
+  #marquee{margin:34px auto 6px;text-align:center;position:relative;z-index:2;padding:18px 34px;
+    border:3px solid #2a2436;border-radius:14px;background:#0b0a14;
+    box-shadow:0 0 34px rgba(255,217,138,.09), inset 0 0 22px rgba(0,0,0,.7)}
+  #bulbs{position:absolute;inset:-9px;border-radius:18px;pointer-events:none}
+  #bulbs i{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 8px 2px rgba(255,217,138,.55);animation:tw 1.6s infinite}
+  @keyframes tw{0%,100%{opacity:1}50%{opacity:.28}}
+  #marquee small{display:block;color:var(--muted);letter-spacing:.34em;font-size:11px;font-family:var(--serif)}
+  #marquee h1{margin:8px 0 4px;font-family:var(--serif);font-weight:600;letter-spacing:.08em;
+    font-size:clamp(20px,4.2vw,34px);color:var(--ink)}
+  #marquee p{margin:0;color:var(--gold);font-family:var(--serif);font-style:italic;font-size:14px}
+  /* ---- posters ---- */
+  #lobby{position:relative;z-index:2;display:flex;gap:26px;flex-wrap:wrap;justify-content:center;
+    padding:30px 12vw 22px;perspective:900px}
+  .poster{width:min(320px,86vw);border-radius:12px;background:#0c0e18;border:1px solid var(--line);
+    overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;position:relative;
+    box-shadow:0 14px 34px rgba(0,0,0,.55)}
+  .poster:hover{transform:translateY(-7px) rotateX(2.5deg);box-shadow:0 24px 50px rgba(0,0,0,.7),0 0 30px rgba(255,217,138,.10)}
+  .poster .frame{margin:10px;border:2px solid rgba(216,183,101,.6);border-radius:8px;overflow:hidden}
+  .poster canvas{display:block;width:100%;height:190px}
+  .poster .body{padding:4px 18px 18px;text-align:center}
+  .poster h2{font-family:var(--serif);font-weight:600;font-size:20px;margin:8px 0 2px;letter-spacing:.04em}
+  .poster .tag{color:var(--muted);font-style:italic;font-family:var(--serif);font-size:13px;min-height:34px}
+  .poster .meta{color:var(--muted);font-size:11.5px;margin:8px 0 12px;letter-spacing:.06em}
+  .poster button{background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:999px;
+    padding:9px 26px;font-size:14px;letter-spacing:.12em;cursor:pointer;font-family:var(--serif)}
+  .poster button:hover{background:rgba(255,217,138,.12)}
+  .badge{position:absolute;top:16px;right:16px;background:rgba(121,201,126,.14);border:1px solid var(--idea);
+    color:var(--idea);font-size:11px;border-radius:999px;padding:3px 10px;display:none}
+  .poster.small{width:min(230px,80vw);align-self:center;opacity:.92}
+  .poster.small canvas{height:110px}
+  .credit{color:var(--muted);font-size:11px;letter-spacing:.05em;margin-top:2px;font-style:italic;font-family:var(--serif)}
+  /* ---- vote hall ---- */
+  #votewrap{position:relative;z-index:2;width:min(760px,92vw);margin:8px auto 60px;text-align:center}
+  #votelock{border:1px dashed var(--line);border-radius:14px;padding:22px;color:var(--muted);
+    font-family:var(--serif);font-style:italic;font-size:14.5px;background:rgba(10,11,20,.5)}
+  #votepanel{display:none;border:1px solid var(--line);border-radius:16px;padding:26px 22px;
+    background:linear-gradient(#0c0d18,#080911);box-shadow:0 18px 44px rgba(0,0,0,.5)}
+  #votepanel h2{font-family:var(--serif);font-weight:600;letter-spacing:.1em;margin:0 0 6px;font-size:22px}
+  #votepanel .story{color:var(--muted);font-size:13.5px;line-height:1.55;max-width:58ch;margin:0 auto 18px}
+  #votepanel .story b{color:var(--gold);font-weight:600}
+  #ballots{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+  .ballot{flex:1 1 240px;max-width:300px;border:1px solid var(--line);border-radius:12px;padding:16px;
+    background:#0b0c16;cursor:pointer;transition:border-color .2s,transform .15s}
+  .ballot:hover{border-color:var(--gold);transform:translateY(-3px)}
+  .ballot h3{margin:0 0 4px;font-family:var(--serif);font-size:16.5px;font-weight:600}
+  .ballot p{margin:0;color:var(--muted);font-size:12px;font-style:italic;font-family:var(--serif)}
+  .ballot .who{margin-top:8px;font-size:11px;letter-spacing:.08em;color:var(--muted)}
+  .ballot.film h3{color:var(--idea)} .ballot.garden h3{color:var(--mem)}
+  #tally{display:none;margin-top:6px}
+  .bar{display:flex;align-items:center;gap:10px;margin:8px auto;max-width:480px;font-size:12.5px}
+  .bar .lbl{width:120px;text-align:right;color:var(--muted)}
+  .bar .track{flex:1;height:12px;border-radius:6px;background:#151726;overflow:hidden;border:1px solid var(--line)}
+  .bar .fill{height:100%;border-radius:6px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .bar .n{width:34px;text-align:left;color:var(--ink);font-variant-numeric:tabular-nums}
+  #votemsg{color:var(--muted);font-size:12.5px;margin-top:12px;font-style:italic;font-family:var(--serif)}
+  #votemsg a{color:var(--gold)}
+  footer{position:relative;z-index:2;text-align:center;color:var(--muted);opacity:.7;font-size:11px;
+    padding:0 0 26px;font-family:var(--serif);font-style:italic}
+  /* ---- trailer overlay ---- */
+  #trailer{position:fixed;inset:0;background:#000;z-index:50;display:none;align-items:center;justify-content:center}
+  #trailer canvas{width:100%;height:100%;display:block}
+  #tskip{position:absolute;right:18px;bottom:18px;background:rgba(0,0,0,.5);border:1px solid var(--line);
+    color:var(--muted);border-radius:999px;padding:8px 18px;cursor:pointer;font-size:13px;font-family:var(--serif);font-style:italic}
+  #tskip:hover{color:var(--ink);border-color:var(--gold)}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="curtain l"></div><div class="curtain r"></div>
+  <div id="marquee">
+    <div id="bulbs"></div>
+    <small>THE SHATTERED REALM PICTURE HOUSE</small>
+    <h1>A CONTEST OF MINDS</h1>
+    <p>two films about one brain · you are the judge</p>
+  </div>
+  <div id="lobby">
+    <div class="poster" id="pFilm">
+      <span class="badge" id="bFilm">✓ watched</span>
+      <div class="frame"><canvas id="cFilm" width="600" height="380"></canvas></div>
+      <div class="body">
+        <h2>THE LESSON &amp; THE SEED</h2>
+        <div class="tag">a tragedy-turned-triumph in five acts — with sound</div>
+        <div class="meta">DIR. THE MACHINE · ~2½ MIN + CREDITS</div>
+        <button onclick="location.href='film.html'">▶&nbsp;&nbsp;WATCH</button>
+        <div class="credit">the challenger — Claude's own design</div>
+      </div>
+    </div>
+    <div class="poster" id="pGarden">
+      <span class="badge" id="bGarden">✓ watched</span>
+      <div class="frame"><canvas id="cGarden" width="600" height="380"></canvas></div>
+      <div class="body">
+        <h2>THE COGNITIVE GARDEN</h2>
+        <div class="tag">a spectacle in miniature — every dot is real data</div>
+        <div class="meta">DIR. THE HUMAN’S DESIGN · ~2 MIN, SILENT</div>
+        <button onclick="location.href='garden.html'">▶&nbsp;&nbsp;WATCH</button>
+        <div class="credit">the incumbent — the owner's original vision, remastered</div>
+      </div>
+    </div>
+    <div class="poster small" id="pTrailer">
+      <div class="frame"><canvas id="cTrailer" width="440" height="220"></canvas></div>
+      <div class="body">
+        <h2 style="font-size:15px">THE TRAILER</h2>
+        <div class="tag" style="min-height:0">what is all this? · 25 sec</div>
+        <button style="padding:7px 18px;font-size:12px" onclick="playTrailer()">↻&nbsp;&nbsp;ROLL IT</button>
+      </div>
+    </div>
+  </div>
+  <div id="votewrap">
+    <div id="votelock">🎞 the ballot box unlocks after you've seen <b>both</b> features — no voting on posters alone</div>
+    <div id="votepanel">
+      <h2>CAST YOUR VOTE</h2>
+      <p class="story">Here's the wager: the human designed the <b>Garden</b>. The machine — Claude — bet
+        <b>20 Good Boy Points</b> that its own film, <b>The Lesson &amp; the Seed</b>, could beat it
+        (plus 5 riding on this very lobby). The humans vote; the points settle. One vote per person,
+        on your honor as a moviegoer.</p>
+      <div id="ballots">
+        <div class="ballot film" onclick="vote('film')">
+          <h3>THE LESSON &amp; THE SEED</h3><p>character, drama, a snoring seed</p>
+          <div class="who">A VOTE FOR THE MACHINE</div>
+        </div>
+        <div class="ballot garden" onclick="vote('garden')">
+          <h3>THE COGNITIVE GARDEN</h3><p>the living map, the honest data</p>
+          <div class="who">A VOTE FOR THE HUMAN</div>
+        </div>
+      </div>
+      <div id="tally">
+        <div class="bar"><span class="lbl">Lesson &amp; Seed</span><span class="track"><span class="fill" id="fFilm" style="background:var(--idea);width:0%"></span></span><span class="n" id="nFilm">–</span></div>
+        <div class="bar"><span class="lbl">Cognitive Garden</span><span class="track"><span class="fill" id="fGarden" style="background:var(--mem);width:0%"></span></span><span class="n" id="nGarden">–</span></div>
+      </div>
+      <div id="votemsg"></div>
+    </div>
+  </div>
+  <footer>built inside the Echoes of the Shattered Realm project · every number in both films is real repository data</footer>
+</div>
+<div id="trailer"><canvas id="tc"></canvas><button id="tskip" onclick="endTrailer()">skip →</button></div>
+<canvas id="confetti"></canvas>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const GOLD="#ffd98a",MEM="#d8b765",MEML="#f2dca0",IDEA="#79c97e",IDEAL="#b6ecb9",INK="#e7e3d8",MUT="#b8bcc6",CREA="#b58cff",RED="#d2685f",CAS="#9fb2d6";
+
+/* ---- marquee bulbs ---- */
+(function(){ const b=$("bulbs"),W=b.clientWidth||600,H=b.clientHeight||120;
+  const per=24; for(let i=0;i<per;i++){ const e=document.createElement("i");
+    const p=i/per*2*(W+H), d=i*0.13;
+    let x,y; if(p<W){x=p;y=0;} else if(p<W+H){x=W;y=p-W;} else if(p<2*W+H){x=2*W+H-p;y=H;} else {x=0;y=2*(W+H)-p;}
+    e.style.left=(x-3)+"px"; e.style.top=(y-3)+"px"; e.style.animationDelay=d+"s"; b.appendChild(e);} })();
+
+/* ---- poster art (canvas-painted, no assets) ---- */
+function blob(c,x,y,r,col,colL,opts){ const o=opts||{}; c.save();
+  c.shadowBlur=14;c.shadowColor=col;
+  const g=c.createRadialGradient(x-r*0.3,y-r*0.35,r*0.2,x,y,r);g.addColorStop(0,colL);g.addColorStop(1,col);
+  c.fillStyle=g;c.beginPath();
+  for(let a=0;a<=6.3;a+=0.35){const rr=r*(1+Math.sin(a*(o.spike?7:3)+1)*(o.spike?0.15:0.06));
+    const px=x+Math.cos(a)*rr,py=y+Math.sin(a)*rr*0.95;a===0?c.moveTo(px,py):c.lineTo(px,py);}c.closePath();c.fill();
+  c.fillStyle="#0c0d12";
+  const er=Math.max(2,r*0.13);
+  if(o.closed){c.strokeStyle="#0c0d12";c.lineWidth=2;
+    c.beginPath();c.moveTo(x-r*0.44,y-r*0.1);c.lineTo(x-r*0.2,y-r*0.1);c.moveTo(x+r*0.2,y-r*0.1);c.lineTo(x+r*0.44,y-r*0.1);c.stroke();}
+  else for(const s of[-1,1]){c.beginPath();c.arc(x+s*r*0.32,y-r*0.1,er,0,6.28);c.fill();}
+  c.restore(); }
+function paintFilmPoster(){ const c=$("cFilm").getContext("2d"),W=600,H=380;
+  const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#131028");g.addColorStop(1,"#05060c");
+  c.fillStyle=g;c.fillRect(0,0,W,H);
+  for(let i=0;i<40;i++){c.globalAlpha=0.3+0.5*Math.random();c.fillStyle="#cfd6e6";
+    c.fillRect(Math.random()*W,Math.random()*H*0.5,1.6,1.6);}c.globalAlpha=1;
+  // gem
+  c.save();c.translate(W*0.35,H*0.44);c.shadowBlur=30;c.shadowColor=GOLD;
+  const lg=c.createLinearGradient(-50,-50,50,50);lg.addColorStop(0,MEML);lg.addColorStop(0.55,GOLD);lg.addColorStop(1,IDEA);
+  c.fillStyle=lg;c.strokeStyle="#fff8";c.lineWidth=2;c.beginPath();
+  for(let i=0;i<6;i++){const a=i/6*6.28-1.57,r=i%2?46:58;const px=Math.cos(a)*r,py=Math.sin(a)*r;i?c.lineTo(px,py):c.moveTo(px,py);}
+  c.closePath();c.fill();c.stroke();
+  c.fillStyle="#0c0d12";c.beginPath();c.arc(-12,4,5,0,6.28);c.fill();c.beginPath();c.arc(12,4,5,0,6.28);c.fill();c.restore();
+  blob(c,W*0.68,H*0.62,34,"#8fae7c","#cfe8bd",{closed:true});                     // sleeping seed
+  c.strokeStyle=IDEA;c.lineWidth=4;c.beginPath();c.moveTo(W*0.68,H*0.62-30);
+  c.quadraticCurveTo(W*0.68+10,H*0.62-56,W*0.68+24,H*0.62-52);c.stroke();
+  c.fillStyle=IDEA;c.beginPath();c.ellipse(W*0.68+24,H*0.62-52,13,7,-0.5,0,6.28);c.fill();
+  c.fillStyle="rgba(184,188,198,.8)";c.font="italic 20px Georgia";c.fillText("z",W*0.68+30,H*0.62-64);
+  c.fillStyle="rgba(0,0,0,0)";
+  c.fillStyle=INK;c.textAlign="center";c.font="italic 15px Georgia";
+  c.fillText("one was forged. one slept.",W/2,H*0.9); }
+function paintGardenPoster(){ const c=$("cGarden").getContext("2d"),W=600,H=380;
+  const g=c.createRadialGradient(W/2,H*0.45,40,W/2,H/2,W*0.6);g.addColorStop(0,"#0c1018");g.addColorStop(1,"#05060c");
+  c.fillStyle=g;c.fillRect(0,0,W,H);
+  blob(c,W*0.26,H*0.32,34,MEM,MEML,{}); blob(c,W*0.74,H*0.3,40,IDEA,IDEAL,{});
+  blob(c,W*0.2,H*0.66,24,MEM,MEML,{}); blob(c,W*0.8,H*0.64,28,IDEA,IDEAL,{});
+  blob(c,W*0.5,H*0.38,26,"#efe9dc","#ffffff",{});
+  for(let i=0;i<10;i++){ const a=i/10*6.28; c.fillStyle=i%2?MEML:IDEAL; c.globalAlpha=0.85;
+    c.beginPath();c.arc(W*0.74+Math.cos(a+1)*58,H*0.3+Math.sin(a+1)*50,4,0,6.28);c.fill(); }
+  c.globalAlpha=1;
+  c.fillStyle="#161a24";c.strokeStyle=CAS;c.lineWidth=2.5;                          // castle
+  c.fillRect(W*0.44,H*0.68,72,44);c.strokeRect(W*0.44,H*0.68,72,44);
+  for(let i=0;i<4;i++)c.fillRect(W*0.44+i*18,H*0.68-8,9,8);
+  c.strokeStyle="rgba(255,217,138,.5)";c.lineWidth=1.5;
+  c.beginPath();c.moveTo(W*0.26,H*0.32);c.quadraticCurveTo(W*0.4,H*0.6,W*0.48,H*0.68);c.stroke();
+  c.beginPath();c.moveTo(W*0.74,H*0.3);c.quadraticCurveTo(W*0.6,H*0.6,W*0.52,H*0.68);c.stroke();
+  c.fillStyle=INK;c.textAlign="center";c.font="italic 15px Georgia";
+  c.fillText("watch a mind grow a garden.",W/2,H*0.9); }
+function paintTrailerPoster(){ const c=$("cTrailer").getContext("2d"),W=440,H=220;
+  c.fillStyle="#0a0910";c.fillRect(0,0,W,H);
+  c.strokeStyle="rgba(216,183,101,.55)";c.lineWidth=2;c.strokeRect(14,14,W-28,H-28);c.strokeRect(19,19,W-38,H-38);
+  c.fillStyle=INK;c.textAlign="center";c.font="italic 600 22px Georgia";
+  c.fillText("TWO FILMS.",W/2,H*0.42);c.fillText("ONE VOTE.",W/2,H*0.62);
+  c.fillStyle=MUT;c.font="italic 12px Georgia";c.fillText("— a moving picture explains —",W/2,H*0.8); }
+paintFilmPoster();paintGardenPoster();paintTrailerPoster();
+
+/* ---- watched flags & vote lock ---- */
+function refreshLock(){
+  let wf=false,wg=false; try{ wf=!!localStorage.getItem("srv_watched_film"); wg=!!localStorage.getItem("srv_watched_garden"); }catch(e){}
+  $("bFilm").style.display=wf?"block":"none"; $("bGarden").style.display=wg?"block":"none";
+  const open=wf&&wg;
+  $("votelock").style.display=open?"none":"block"; $("votepanel").style.display=open?"block":"none";
+  if(open) loadTally();
+  let voted=null; try{ voted=localStorage.getItem("srv_voted"); }catch(e){}
+  if(voted){ $("ballots").style.opacity=0.45; $("ballots").style.pointerEvents="none";
+    $("votemsg").innerHTML="you voted for <b style='color:var(--gold)'>"+(voted==="film"?"The Lesson & the Seed":"The Cognitive Garden")+"</b> — thank you, patron of the arts";
+    $("tally").style.display="block"; }
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refreshLock(); });
+addEventListener("focus",refreshLock);
+addEventListener("pageshow",refreshLock);
+
+/* ---- the ballot box (keyless public counter, with graceful fallback) ---- */
+const NS="shattered-realm-vote-2026", API="https://abacus.jasoncameron.dev";
+const EMAIL="zanepauldba@gmail.com";
+async function getCount(k){ const r=await fetch(API+"/get/"+NS+"/"+k,{mode:"cors"}); if(!r.ok)throw 0; return (await r.json()).value||0; }
+async function hit(k){ const r=await fetch(API+"/hit/"+NS+"/"+k,{mode:"cors"}); if(!r.ok)throw 0; return (await r.json()).value||0; }
+async function loadTally(){
+  try{
+    const [f,g]=await Promise.all([getCount("film").catch(()=>0),getCount("garden").catch(()=>0)]);
+    showTally(f,g);
+  }catch(e){ /* box unreachable; tally shows after a vote attempt */ }
+}
+function showTally(f,g){ const tot=Math.max(1,f+g);
+  $("tally").style.display="block";
+  $("fFilm").style.width=(f/tot*100)+"%"; $("fGarden").style.width=(g/tot*100)+"%";
+  $("nFilm").textContent=f; $("nGarden").textContent=g; }
+async function vote(k){
+  let voted=null; try{ voted=localStorage.getItem("srv_voted"); }catch(e){}
+  if(voted){ refreshLock(); return; }
+  $("votemsg").textContent="stuffing your ballot into the box…";
+  try{
+    await hit(k);
+    try{ localStorage.setItem("srv_voted",k); }catch(e){}
+    confettiBurst(k==="film"?IDEA:MEM);
+    const [f,g]=await Promise.all([getCount("film").catch(()=>0),getCount("garden").catch(()=>0)]);
+    showTally(f,g); refreshLock();
+  }catch(e){
+    $("votemsg").innerHTML="⚠ the ballot box is unreachable from here — please "+
+      "<a href='mailto:"+EMAIL+"?subject=My%20vote%3A%20"+(k==="film"?"The%20Lesson%20and%20the%20Seed":"The%20Cognitive%20Garden")+
+      "&body=I%20vote%20for%20"+(k==="film"?"the%20machine%27s%20film":"the%20human%27s%20garden")+"!'>email your vote</a> instead. it counts the same.";
+  }
+}
+
+/* ---- confetti ---- */
+function confettiBurst(color){ const cc=$("confetti"),c=cc.getContext("2d");
+  cc.width=innerWidth;cc.height=innerHeight;
+  const ps=[]; for(let i=0;i<120;i++) ps.push({x:innerWidth/2,y:innerHeight*0.6,
+    vx:(Math.random()-0.5)*560,vy:-Math.random()*520-80,r:Math.random()*5+2,
+    col:[color,GOLD,"#fff",CREA][i%4],life:0});
+  let last=performance.now();
+  (function f(now){ const dt=Math.min(0.04,(now-last)/1000);last=now;
+    c.clearRect(0,0,cc.width,cc.height); let alive=false;
+    for(const p of ps){ p.life+=dt; if(p.life>2.4)continue; alive=true;
+      p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=900*dt;
+      c.globalAlpha=Math.max(0,1-p.life/2.4);c.fillStyle=p.col;
+      c.fillRect(p.x,p.y,p.r,p.r*1.6);}
+    c.globalAlpha=1; if(alive)requestAnimationFrame(f); else c.clearRect(0,0,cc.width,cc.height); })(last);
+}
+
+/* ---- the silent-film trailer ---- */
+const TCARDS=[
+  {t:0.0,d:3.2,txt:"THE SHATTERED REALM PICTURE HOUSE",sub:"proudly presents"},
+  {t:3.2,d:3.4,txt:"A CONTEST OF MINDS",sub:"in glorious flicker-vision"},
+  {t:6.6,d:3.6,txt:"THE HUMAN DESIGNED A GARDEN…",sub:"every blossom a real idea"},
+  {t:10.2,d:3.6,txt:"…THE MACHINE DIRECTED A FILM",sub:"it has a snoring seed in it"},
+  {t:13.8,d:4.0,txt:"THE MACHINE HAS WAGERED 20 GOOD BOY POINTS",sub:"it cannot afford to lose"},
+  {t:17.8,d:3.4,txt:"WATCH BOTH. THEN CAST YOUR VOTE.",sub:"one ballot per patron"},
+  {t:21.2,d:3.8,txt:"NOW SHOWING",sub:"in the lobby, behind you"}];
+const TDUR=25;
+let tT=0,tOn=false,tLast=0;
+function playTrailer(){ $("trailer").style.display="flex"; tT=0;tOn=true;tLast=performance.now();
+  const tc=$("tc");tc.width=innerWidth*devicePixelRatio;tc.height=innerHeight*devicePixelRatio;
+  requestAnimationFrame(tFrame); }
+function endTrailer(){ tOn=false;$("trailer").style.display="none";
+  try{localStorage.setItem("srv_trailer_seen","1");}catch(e){} }
+function tFrame(now){ if(!tOn)return;
+  const dt=Math.min(0.05,(now-tLast)/1000);tLast=now;tT+=dt;
+  const tc=$("tc"),c=tc.getContext("2d"),W=tc.width,H=tc.height;
+  c.setTransform(1,0,0,1,0,0);c.fillStyle="#050403";c.fillRect(0,0,W,H);
+  const card=TCARDS.find(k=>tT>=k.t&&tT<k.t+k.d);
+  if(card){ const u=tT-card.t, a=Math.min(1,u/0.5)*Math.min(1,(card.d-u)/0.5);
+    const fl=0.82+0.18*Math.random();                                            // projector flicker
+    // iris
+    const ir=Math.min(1,u/0.6);
+    c.save();c.beginPath();c.arc(W/2,H/2,Math.max(W,H)*0.75*ir,0,6.28);c.clip();
+    c.fillStyle="#0b0908";c.fillRect(0,0,W,H);
+    c.strokeStyle="rgba(216,183,101,"+0.5*a+")";c.lineWidth=3;
+    c.strokeRect(W*0.14,H*0.22,W*0.72,H*0.56);c.strokeRect(W*0.145,H*0.228,W*0.71,H*0.545);
+    c.globalAlpha=a*fl;c.fillStyle="#ddd5c2";c.textAlign="center";
+    const fs=Math.min(W/22,card.txt.length>30?W/26:W/20);
+    c.font="italic 600 "+fs+"px Georgia,serif";
+    const words=card.txt.split(" ");let line="",lines=[];
+    for(const w of words){if((line+w).length>26){lines.push(line);line=w+" ";}else line+=w+" ";}lines.push(line);
+    lines.forEach((l,i)=>c.fillText(l.trim(),W/2,H*0.46+i*fs*1.25-(lines.length-1)*fs*0.6));
+    c.font="italic "+(fs*0.42)+"px Georgia,serif";c.fillStyle="#9a917e";
+    c.fillText("— "+card.sub+" —",W/2,H*0.68);
+    c.globalAlpha=1;c.restore(); }
+  // grain + scratches
+  c.globalAlpha=0.10*Math.random();c.fillStyle="#fff";
+  for(let i=0;i<40;i++)c.fillRect(Math.random()*W,Math.random()*H,2,2);
+  if(Math.random()<0.18){c.globalAlpha=0.12;c.fillRect(Math.random()*W,0,1.5,H);}
+  c.globalAlpha=1;
+  if(tT>=TDUR){ endTrailer(); return; }
+  requestAnimationFrame(tFrame); }
+
+/* first visit: roll the trailer automatically */
+let seen=null; try{ seen=localStorage.getItem("srv_trailer_seen"); }catch(e){}
+if(!seen && !matchMedia("(prefers-reduced-motion: reduce)").matches) playTrailer();
+refreshLock();
+</script>
+</body>
+</html>

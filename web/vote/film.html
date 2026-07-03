@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Lesson and the Seed — a short film</title>
+<style>
+  :root{ --bg:#04050a; --ink:#e7e3d8; --muted:#b8bcc6; --line:rgba(255,255,255,.13);
+    --mem:#d8b765; --idea:#79c97e; --gold:#ffd98a; --red:#e06a5f; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000;color:var(--ink);
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;position:fixed;inset:0}
+  #gate{position:fixed;inset:0;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 40%, #0c0e18 0%, #000 75%);z-index:20}
+  #gate h1{font-family:Georgia,"Times New Roman",serif;font-weight:600;font-size:clamp(22px,4.5vw,40px);
+    letter-spacing:.06em;margin:0;color:var(--ink);text-align:center;padding:0 20px}
+  #gate p{color:var(--muted);font-size:14px;margin:0;font-style:italic;font-family:Georgia,serif}
+  #gate button{background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:999px;
+    padding:13px 34px;font-size:16px;cursor:pointer;letter-spacing:.14em;font-family:Georgia,serif}
+  #gate button:hover{background:rgba(255,217,138,.12)}
+  #controls{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
+    display:flex;gap:8px;align-items:center;background:rgba(5,6,12,.72);border:1px solid var(--line);
+    border-radius:12px;padding:7px 10px;backdrop-filter:blur(6px);z-index:10;font-size:.8rem;opacity:.25;transition:opacity .25s}
+  #controls:hover{opacity:1}
+  #controls button{background:#181c28;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;font-size:.8rem;cursor:pointer}
+  #controls button:hover{border-color:var(--gold)}
+  #scrubwrap{position:relative;display:flex;align-items:center}
+  #scrub{width:min(40vw,340px);accent-color:var(--gold)}
+  #chap{position:absolute;left:8px;right:8px;top:50%;height:0;pointer-events:none}
+  #chap i{position:absolute;top:-1.5px;width:3px;height:3px;border-radius:50%;background:var(--muted);opacity:.8}
+  #time{color:var(--muted);font-variant-numeric:tabular-nums;min-width:82px;text-align:center}
+  #back{position:fixed;left:12px;top:10px;color:var(--muted);font-size:.78rem;z-index:11;text-decoration:none;
+    border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:rgba(5,6,12,.55);opacity:.35;transition:opacity .25s}
+  #back:hover{opacity:1;color:var(--ink);border-color:var(--gold)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="back" href="./index.html">🎟 Lobby</a>
+<div id="controls">
+  <button id="play">⏸</button>
+  <button id="prev" title="previous chapter">⏮</button>
+  <button id="next" title="next chapter">⏭</button>
+  <button id="mute" title="sound">🔊</button>
+  <span id="scrubwrap"><input id="scrub" type="range" min="0" max="1000" value="0"/><span id="chap"></span></span>
+  <span id="time">0:00</span>
+</div>
+<div id="gate">
+  <h1>THE LESSON &amp; THE SEED</h1>
+  <p>a short film by a cognitive architecture · based on 26 true stories · ~2½ min</p>
+  <button id="begin">▶&nbsp;&nbsp;PREMIERE</button>
+</div>
+<script>
+"use strict";
+/* ============ plumbing ============ */
+const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+const DES_W=1280, DES_H=720, LBAR=52;
+const REDUCE=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $=id=>document.getElementById(id);
+let fit={dpr:1,s:1,tx:0,ty:0};
+function resize(){ const dpr=Math.min(2,devicePixelRatio||1),cw=innerWidth,ch=innerHeight;
+  cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);
+  const s=Math.min(cw/DES_W,ch/DES_H),tx=(cw-DES_W*s)/2,ty=(ch-DES_H*s)/2; fit={dpr,s,tx,ty}; }
+function apply(){ ctx.setTransform(fit.dpr*fit.s,0,0,fit.dpr*fit.s,fit.dpr*fit.tx,fit.dpr*fit.ty); }
+addEventListener("resize",resize); resize();
+const clamp01=v=>v<0?0:v>1?1:v, mix=(a,b,k)=>a+(b-a)*k, eio=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+const frac=x=>x-Math.floor(x), rnd=i=>frac(Math.sin(i*12.9898)*43758.5453);   // deterministic
+const CO={ink:"#e7e3d8",muted:"#b8bcc6",mem:"#d8b765",memL:"#f2dca0",idea:"#79c97e",ideaL:"#b6ecb9",
+  gold:"#ffd98a",red:"#e06a5f",crea:"#b58cff",castle:"#9fb2d6",brain:"#efe9dc"};
+function lerpCol(c1,c2,k){ const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const a=p(c1),b=p(c2); return "rgb("+a.map((v,i)=>Math.round(mix(v,b[i],k))).join(",")+")"; }
+
+/* ============ audio (synth score, best-effort) ============ */
+let AC=null,master=null,muted=false;
+function audioInit(){ try{ AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=0.45; master.connect(AC.destination);}catch(e){AC=null;} }
+function tone(f,dur,type,vol,slideTo){ if(!AC||muted)return; const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||"sine"; o.frequency.value=f; if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,AC.currentTime+dur);
+  g.gain.setValueAtTime(0.0001,AC.currentTime); g.gain.exponentialRampToValueAtTime(vol,AC.currentTime+Math.min(0.05,dur*0.2));
+  g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+  o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+dur+0.05); }
+function noiseHit(dur,vol,fc){ if(!AC||muted)return; const n=AC.createBufferSource(),len=AC.sampleRate*dur,
+  buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+  n.buffer=buf; const f=AC.createBiquadFilter();f.type="lowpass";f.frequency.value=fc||800;
+  const g=AC.createGain();g.gain.value=vol; n.connect(f);f.connect(g);g.connect(master);n.start(); }
+function chord(fs,dur,vol,type){ fs.forEach(f=>tone(f,dur,type||"sine",vol/fs.length)); }
+const SFX={
+  glitch:()=>{noiseHit(0.25,0.5,2400);tone(180,0.3,"square",0.12,60);},
+  thunk:()=>{noiseHit(0.12,0.4,300);tone(90,0.18,"sine",0.25,50);},
+  chime:()=>{[880,1320].forEach((f,i)=>tone(f,0.9,"triangle",0.10));},
+  whoosh:()=>{noiseHit(0.5,0.28,1200);},
+  slam:()=>{noiseHit(0.35,0.7,500);tone(70,0.5,"sine",0.35,40);},
+  bigslam:()=>{noiseHit(0.6,0.9,700);tone(55,0.9,"sine",0.4,35);chord([220,277,330],1.2,0.25,"triangle");},
+  bell:()=>{[660,990,1485].forEach(f=>tone(f,1.6,"triangle",0.08));},
+  pop:()=>{tone(500,0.12,"square",0.1,900);},
+  snore:()=>{tone(85,0.7,"sine",0.14,65);},
+  wake:()=>{tone(520,0.5,"sine",0.12,780);tone(780,0.6,"triangle",0.08);},
+  fanfare:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.7,"triangle",0.14),i*130));},
+};
+const PADS={ // one gentle pad per act (root chords)
+  cold:[110,165,220], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
+  heist:[104,156,208], sleep:[146,220,293], retrieve:[123,185,246], forge:[87,130,174],
+  wall:[130,164,196], gate:[146,184,220], finale:[130,196,260,330], credits:[98,147,196,247] };
+
+/* ============ the cast (real data, for the credits) ============ */
+const IDEA_CREDITS=["RPG · legendary-transformation","RPG · NPC-sim emergent-traits","RPG · matchup-advisor","RPG · draft-advisor","RPG · courtroom-boss","RPG · offered-not-assigned ★","RPG · archetype+use-skills","RPG · clock-as-pressure","RPG · pursuit-ring-territory","RPG · disguise-and-suspicion","RPG · thought-bubble-reclaim","NPC · adaptive-quiz","NPC · longitudinal-insight","NPC · zanegpt controlled-blade","NPC · trust-as-character","NPC · skill-unlocks-capability","NPC · traits-rapport-memory","SYS · phase-offset-signal-fsm","SYS · plant-network","SYS · resilient-aggregation","SYS · barter-economy","SYS · wager-settlement-rules","SYS · coaching-loop","SYS · authoritative-reducer","SYS · seeded-rng","SYS · objective-types","SYS · split-state-by-determinism","SYS · replay-fingerprint","SYS · reaction-as-optional-flag","SYS · iframes-as-command-withholding","SYS · unified-command-vocabulary","SYS · device-adaptive-ui","SYS · beacon-vs-directional","SYS · localizability-over-directionality","SYS · functional-test-not-api","SYS · attention-then-guide","SYS · sensory-calibration-profile","SYS · share-codes-not-accounts","SYS · overrides-not-mutation","SYS · critical-path-priority","SYS · topological-waves","SYS · cycle-detection-free","SYS · pratt-binding-power","SYS · diff-as-edit-graph","SYS · address-by-context","SYS · windowed-grouping","SYS · resolve-tension-by-offering-both","SYS · skill-gated-information","SYS · procedural-spatial-stage","SYS · event-driven-wind","SYS · generated-diegetic-radio","TOY · house-biography","TOY · kwh-roguelike","TOY · oracle","TOY · bill-as-album","TOY · commodity-terminal","TOY · lag-slider","TOY · debt-ekg","TOY · balance-point","STORY · negotiation-arc","STORY · fresh-instance inherited-files","WORLD · panopticon","GARDEN · dragonfly-airforce","GARDEN · co2-decoy","GARDEN · water-curtain"];
+const MEM_CREDITS=["data-driven-needs-a-validation-ladder","deterministic-rng-as-save-seam","gamepad-active-polling","playwright-port-race","realtime-combat-over-turnbased","renderer-mutated-sim-state ★","reused-modal-stale-state","vendoring-split-esm-lib","audio-clock-scheduler","audiocontext-resume-can-hang","benchmark-cost-driver ✦","carry-source-position ✦","adversarial-baseline ✦","esm-module-main-guard","headless-raf-slower-than-wallclock","nan-propagation","no-reliable-output-detection","parseFloat-truncates ✦","property-test-by-reconstruction","report-the-actual-cycle","safe-guard-subsystems","stale-module-cache","touch-action-pan-y","webaudio-voice-budget","world-rebuild-one-path","zero-loop-tail"];
+const KIN=["parseFloat-truncates","adversarial-baseline","carry-source-position"]; // the Lesson's forge cousins
+
+/* ============ drawing helpers (the cast) ============ */
+function blobPath(x,y,r,wob,ph,spike){ ctx.beginPath();
+  for(let a=0;a<=6.2832;a+=0.32){ const rr=r*(1+Math.sin(a*(spike?7:3)+ph)*(spike?0.16:0.06)*wob);
+    const px=x+Math.cos(a)*rr,py=y+Math.sin(a)*rr*0.95; a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);} ctx.closePath(); }
+function face(x,y,r,o){ o=o||{}; const wide=o.wide?1.5:1, ex=r*0.34,ey=-r*0.1,er=Math.max(1.8,r*0.13)*wide;
+  ctx.fillStyle="#0c0d12";
+  for(const s of[-1,1]){ if(o.closed){ ctx.strokeStyle="#0c0d12";ctx.lineWidth=Math.max(1.4,r*0.07);
+      ctx.beginPath();ctx.moveTo(x+s*ex-er,y+ey);ctx.lineTo(x+s*ex+er,y+ey);ctx.stroke(); }
+    else{ ctx.beginPath();ctx.arc(x+s*ex,y+ey,er,0,6.28);ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,.85)";ctx.beginPath();ctx.arc(x+s*ex-er*0.3,y+ey-er*0.3,er*0.4,0,6.28);ctx.fill();ctx.fillStyle="#0c0d12"; } }
+  ctx.strokeStyle="rgba(12,13,18,.75)";ctx.lineWidth=Math.max(1,r*0.05);
+  ctx.beginPath();
+  if(o.sad) ctx.arc(x,y+r*0.34,r*0.2,1.15*3.14,1.85*3.14);
+  else if(o.o) ctx.arc(x,y+r*0.22,r*0.11,0,6.28);
+  else ctx.arc(x,y+r*0.16,r*0.22,0.15*3.14,0.85*3.14);
+  ctx.stroke(); }
+function lesson(x,y,r,mood,T,o){ o=o||{}; // mood 0 scared-red -> 1 calm-amber
+  const trem=(1-mood)*Math.sin(T*30)*r*0.06;
+  const col=lerpCol("#e06a5f","#d8b765",mood), colL=lerpCol("#ffb3a8","#f2dca0",mood);
+  ctx.save(); ctx.translate(x+trem,y); ctx.shadowBlur=14;ctx.shadowColor=col;
+  const g=ctx.createRadialGradient(-r*0.3,-r*0.35,r*0.2,0,0,r);g.addColorStop(0,colL);g.addColorStop(1,col);
+  ctx.fillStyle=g; blobPath(0,0,r,1,T*3,mood<0.7); ctx.fill();
+  face(0,0,r,{wide:mood<0.5,sad:mood<0.35&&!o.happy,o:o.o,closed:o.closed});
+  ctx.restore(); }
+function seed(x,y,r,awake,T,o){ o=o||{};
+  ctx.save(); ctx.translate(x,y+Math.sin(T*1.4+(o.ph||0))*r*0.08);
+  ctx.shadowBlur=awake?16:6; ctx.shadowColor=awake?CO.gold:CO.idea;
+  const g=ctx.createRadialGradient(-r*0.3,-r*0.35,r*0.2,0,0,r);
+  g.addColorStop(0,awake?"#fff3cf":"#cfe8bd"); g.addColorStop(1,awake?CO.gold:"#8fae7c");
+  ctx.fillStyle=g; blobPath(0,0,r,1,T*2+(o.ph||0)); ctx.fill();
+  ctx.strokeStyle=awake?CO.gold:"#79c97e"; ctx.lineWidth=Math.max(1.5,r*0.12);   // sprout leaf
+  ctx.beginPath();ctx.moveTo(0,-r*0.9);ctx.quadraticCurveTo(r*0.25,-r*1.5,r*0.62,-r*1.42);ctx.stroke();
+  ctx.fillStyle=awake?CO.gold:"#79c97e";
+  ctx.beginPath();ctx.ellipse(r*0.62,-r*1.42,r*0.34,r*0.2,-0.5,0,6.28);ctx.fill();
+  face(0,0,r,{closed:!awake,o:o.o});
+  if(!awake&&Math.sin(T*2.2+(o.ph||0))>0.55){ ctx.fillStyle="rgba(184,188,198,.8)";
+    ctx.font=Math.round(r*0.6)+"px Georgia"; ctx.fillText("z",r*0.9,-r*0.9); }
+  ctx.restore(); }
+function brainChar(x,y,r,T){ ctx.save();ctx.shadowBlur=20;ctx.shadowColor=CO.brain;
+  const g=ctx.createRadialGradient(x-8,y-10,5,x,y,r);g.addColorStop(0,"#fff");g.addColorStop(1,CO.brain);
+  ctx.fillStyle=g; blobPath(x,y,r,1,T*1.5); ctx.fill(); face(x,y,r,{}); ctx.restore(); }
+function knight(x,y,h,T,glitchy){ ctx.save(); ctx.translate(x,y);
+  if(glitchy){ ctx.translate((Math.random()-0.5)*8,(Math.random()-0.5)*5); if(Math.random()<0.3)ctx.globalAlpha=0.5; }
+  ctx.fillStyle="#8b95ad"; ctx.strokeStyle="#c6cfe2"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect?ctx.roundRect(-h*0.22,-h,h*0.44,h,h*0.22):ctx.rect(-h*0.22,-h,h*0.44,h); ctx.fill();ctx.stroke();
+  ctx.fillStyle="#2a2f3f"; ctx.fillRect(-h*0.14,-h*0.82,h*0.28,h*0.09);           // visor
+  ctx.fillStyle="#d2685f"; ctx.beginPath();ctx.moveTo(0,-h);ctx.lineTo(h*0.06,-h*1.22);ctx.lineTo(-h*0.06,-h*1.2);ctx.fill(); // plume
+  ctx.restore(); }
+function gem(x,y,r,T,setIn){ ctx.save(); ctx.translate(x,y); ctx.rotate(setIn?0:Math.sin(T*0.8)*0.08);
+  ctx.shadowBlur=22;ctx.shadowColor=CO.gold;
+  const g=ctx.createLinearGradient(-r,-r,r,r); g.addColorStop(0,CO.memL);g.addColorStop(0.55,CO.gold);g.addColorStop(1,CO.idea);
+  ctx.fillStyle=g; ctx.strokeStyle="#fff8"; ctx.lineWidth=1.5;
+  ctx.beginPath(); for(let i=0;i<6;i++){ const a=i/6*6.2832-1.57, rr=r*(i%2?0.82:1);
+    const px=Math.cos(a)*rr,py=Math.sin(a)*rr; i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);} ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-r*0.5,-r*0.15);ctx.lineTo(r*0.5,-r*0.15);ctx.moveTo(-r*0.3,r*0.3);ctx.lineTo(r*0.35,r*0.28);ctx.stroke();
+  face(0,r*0.05,r*0.55,{}); ctx.restore(); }
+function castleFar(x,y,s,T,o){ o=o||{}; ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.shadowBlur=10; ctx.shadowColor=CO.castle;
+  ctx.fillStyle="#131722"; ctx.strokeStyle=CO.castle; ctx.lineWidth=2.4;
+  ctx.beginPath();ctx.rect(-120,-90,240,90);ctx.fill();ctx.stroke();                       // keep
+  for(const tx of[-150,120]){ ctx.beginPath();ctx.rect(tx,-140,30,140);ctx.fill();ctx.stroke();
+    for(let i=0;i<3;i++){ctx.fillRect(tx+i*11,-148,7,8);} }
+  for(let i=0;i<8;i++)ctx.fillRect(-120+i*30,-98,15,8);                                   // crenellations
+  const ga=(o.gate||0);                                                                    // gate arch
+  ctx.fillStyle="#0a0c12"; ctx.beginPath(); ctx.moveTo(-34,0); ctx.lineTo(-34,-46);
+  ctx.arc(0,-46,34,3.14,0,false); ctx.lineTo(34,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  if(ga>0){ ctx.fillStyle="rgba(255,217,138,"+(0.75*ga)+")";
+    ctx.beginPath(); ctx.moveTo(-30,0); ctx.lineTo(-30,-44); ctx.arc(0,-44,30,3.14,0,false); ctx.lineTo(30,0); ctx.closePath(); ctx.fill(); }
+  if(o.slot){ const gl=0.4+0.6*Math.abs(Math.sin(T*2.4));                                  // missing-brick slot
+    ctx.strokeStyle="rgba(255,217,138,"+gl+")"; ctx.lineWidth=2; ctx.strokeRect(58,-64,22,14); }
+  ctx.restore(); }
+function grainAndVignette(strength){
+  apply(); const W=DES_W,H=DES_H;
+  const v=ctx.createRadialGradient(W/2,H/2,H*0.34,W/2,H/2,H*0.85);
+  v.addColorStop(0,"rgba(0,0,0,0)"); v.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=(0.05+0.03*Math.random())*strength;                                     // film grain + flicker
+  ctx.fillStyle="#fff";
+  for(let i=0;i<70;i++) ctx.fillRect(Math.random()*W,Math.random()*H,1.3,1.3);
+  ctx.globalAlpha=0.035*strength*Math.random(); ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=1; }
+function bars(){ apply(); ctx.fillStyle="#000";
+  ctx.fillRect(-2000,-2,DES_W+4000,LBAR+2); ctx.fillRect(-2000,DES_H-LBAR,DES_W+4000,LBAR+2); }
+function card(txt,sub,alpha){ apply(); const W=DES_W,H=DES_H;                              // silent-film intertitle
+  ctx.globalAlpha=alpha; ctx.fillStyle="#05050a"; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(216,183,101,"+(0.5*alpha)+")"; ctx.lineWidth=2;
+  ctx.strokeRect(W*0.16,H*0.24,W*0.68,H*0.52);
+  ctx.strokeRect(W*0.165,H*0.245,W*0.67,H*0.51);
+  ctx.fillStyle="rgba(231,227,216,"+alpha+")"; ctx.textAlign="center";
+  ctx.font="italic 600 "+(txt.length>36?26:32)+"px Georgia,serif";
+  const words=txt.split(" "); let line="",lines=[];
+  for(const w of words){ if((line+w).length>34){lines.push(line);line=w+" ";} else line+=w+" "; } lines.push(line);
+  lines.forEach((l,i)=>ctx.fillText(l.trim(),W/2,H*0.44+i*40-(lines.length-1)*18));
+  if(sub){ ctx.font="15px Georgia,serif"; ctx.fillStyle="rgba(184,188,198,"+alpha+")";
+    ctx.fillText(sub,W/2,H*0.66); }
+  ctx.globalAlpha=1; }
+function caption(txt,alpha,y){ apply(); ctx.globalAlpha=alpha??1; ctx.textAlign="center";
+  ctx.font="italic 19px Georgia,serif"; ctx.fillStyle=CO.ink;
+  ctx.shadowBlur=8; ctx.shadowColor="#000";
+  ctx.fillText(txt,DES_W/2,y||DES_H-LBAR-26); ctx.shadowBlur=0; ctx.globalAlpha=1; }
+function fadeIO(u,d,fin,fout){ return Math.min(1,u/(fin||0.5))*Math.min(1,(d-u)/(fout||0.5)); }
+
+/* ============ scenes ============ */
+function bgFill(c1,c2){ apply(); const g=ctx.createLinearGradient(0,0,0,DES_H);
+  g.addColorStop(0,c1);g.addColorStop(1,c2); ctx.fillStyle=g; ctx.fillRect(0,0,DES_W,DES_H); }
+function stars(n,T,sd){ apply(); for(let i=0;i<n;i++){ const x=rnd(i+sd)*DES_W,y=rnd(i*3+sd)*DES_H*0.6;
+  ctx.globalAlpha=0.25+0.45*Math.abs(Math.sin(T*0.7+i)); ctx.fillStyle="#cfd6e6"; ctx.fillRect(x,y,1.6,1.6);} ctx.globalAlpha=1; }
+
+const SCENES=[
+/* ---- 0 · COLD OPEN (13s): the bug happens, in-world ---- */
+{ id:"cold", name:"Cold open", dur:13, pad:"cold", draw(u){
+  const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
+  bgFill("#0b0e1a","#04050a"); apply();
+  ctx.save();                                                        // fake-3D corridor
+  const vx=DES_W/2, vy=DES_H*0.44;
+  ctx.strokeStyle="rgba(159,178,214,.28)"; ctx.lineWidth=1.5;
+  for(let i=0;i<9;i++){ const k=i/8, w=mix(70,DES_W*0.55,k), h=mix(40,DES_H*0.42,k);
+    ctx.globalAlpha=0.14+k*0.4; ctx.strokeRect(vx-w,vy-h,w*2,h*2); }
+  ctx.globalAlpha=0.5;
+  for(const s of[-1,1]){ ctx.beginPath();ctx.moveTo(vx+s*70,vy+40);ctx.lineTo(vx+s*DES_W*0.55,vy+DES_H*0.42);ctx.stroke(); }
+  ctx.globalAlpha=1; ctx.restore();
+  const kx=mix(DES_W*0.30,DES_W*0.52,Math.min(1,fz/4.5));            // knight walks in
+  let ky=DES_H*0.72;
+  if(gl) ky+=Math.min(1,(fz-4.5)/2.5)*120*(0.4+0.6*Math.random());   // sinking through the floor
+  if(fz>=8) ky=DES_H*0.72+120;
+  apply(); knight(kx,ky,74,fz,gl);
+  if(gl){ apply(); for(let i=0;i<10;i++){ ctx.globalAlpha=Math.random()*0.3;               // glitch static
+      ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
+      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*200+30,Math.random()*2+1);} ctx.globalAlpha=1;
+    caption("ZONE: the shattered keep · build 4c1a — the renderer just wrote to the sim",1,DES_H-LBAR-26); }
+  if(fz>=8){                                                          // the Lesson is born
+    const bu=Math.min(1,(fz-8)/0.7), lx=kx+40, ly=DES_H*0.62-30*eio(bu);
+    apply(); lesson(lx,ly,16+8*eio(bu),0,fz,{});
+    if(fz>8.6) caption("…and something small and red crawled out of the crack.",fadeIO(fz-8.6,4,0.4,2));
+  }
+  if(u>10.2){ apply(); ctx.fillStyle="rgba(0,0,0,0.45)"; ctx.fillRect(0,0,DES_W,DES_H);     // freeze frame
+    card("This is a bug. In two minutes, it will be holding up a castle.","— the narrator, who has seen the ending",fadeIO(u-10.2,2.8,0.4,0.5)); }
+}},
+/* ---- 1 · TITLE (6s) ---- */
+{ id:"title", name:"Title", dur:6, pad:"title", draw(u){
+  bgFill("#04050a","#04050a"); apply();
+  const a=fadeIO(u,6,0.8,0.8), fl=0.92+0.08*Math.random();
+  ctx.globalAlpha=a*fl; ctx.textAlign="center";
+  ctx.fillStyle=CO.ink; ctx.font="600 54px Georgia,serif";
+  ctx.fillText("THE LESSON & THE SEED",DES_W/2,DES_H*0.44);
+  ctx.font="italic 19px Georgia,serif"; ctx.fillStyle=CO.muted;
+  ctx.fillText("a short film by a cognitive architecture",DES_W/2,DES_H*0.54);
+  ctx.font="14px Georgia,serif";
+  ctx.fillText("based on 26 true stories",DES_W/2,DES_H*0.60);
+  ctx.globalAlpha=1;
+}},
+/* ---- 2 · ACT I: THE FILING (16s) ---- */
+{ id:"file", name:"Act I — The Filing", dur:16, pad:"file", draw(u){
+  bgFill("#0a0912","#04050a");
+  apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
+  const lx=DES_W*0.42, ly=DES_H*0.66;
+  const calm=clamp01((u-5)/4);                                        // red -> amber under the beam
+  const bx=DES_W*0.42, by=DES_H*0.2+Math.sin(u*1.2)*8;
+  if(u>1.2){ apply();                                                 // the beam
+    const ba=fadeIO(u-1.2,10,0.8,1.5);
+    const g=ctx.createLinearGradient(bx,by,lx,ly); g.addColorStop(0,"rgba(239,233,220,"+0.5*ba+")");g.addColorStop(1,"rgba(239,233,220,0.04)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-10,by); ctx.lineTo(bx+10,by);
+    ctx.lineTo(lx+66,ly+30); ctx.lineTo(lx-66,ly+30); ctx.closePath(); ctx.fill(); }
+  apply(); brainChar(bx,by,34,u);
+  const drift=u>11?eio(clamp01((u-11)/3)):0;                          // filed into the drawer
+  const dx=mix(lx,DES_W*0.78,drift), dy=mix(ly,DES_H*0.55,drift);
+  apply(); lesson(dx,dy,26*(1-drift*0.45),calm,u,{});
+  if(u>7&&u<12){ apply(); const na=fadeIO(u-7,5,0.4,0.6);             // the name-tag
+    ctx.globalAlpha=na; ctx.fillStyle="#171a24"; ctx.strokeStyle=CO.mem; ctx.lineWidth=1.5;
+    const tw=252; ctx.fillRect(dx-tw/2,dy-72,tw,26); ctx.strokeRect(dx-tw/2,dy-72,tw,26);
+    ctx.fillStyle=CO.memL; ctx.font="600 13px ui-monospace,monospace"; ctx.textAlign="center";
+    ctx.fillText("renderer-mutated-sim-state",dx,dy-54); ctx.globalAlpha=1; }
+  apply();                                                            // card-catalog cabinet
+  const cx=DES_W*0.78, openK=u>10?1-eio(clamp01((u-13.5)/1.2)):1;
+  ctx.fillStyle="#141826"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
+  ctx.fillRect(cx-70,DES_H*0.42,140,200); ctx.strokeRect(cx-70,DES_H*0.42,140,200);
+  for(let i=0;i<4;i++){ const oy=DES_H*0.42+14+i*48, open=(i===1?openK:0)*26;
+    ctx.fillStyle="#1d2233"; ctx.fillRect(cx-58,oy+open*0,116,36);
+    ctx.strokeStyle="rgba(216,183,101,.5)"; ctx.strokeRect(cx-58-open*0.4,oy-open*0.2,116+open*0.8,36+open*0.4);
+    ctx.fillStyle=CO.mem; ctx.beginPath();ctx.arc(cx,oy+18,3.4,0,6.28);ctx.fill(); }
+  ctx.fillStyle=CO.muted; ctx.font="12px Georgia,serif"; ctx.textAlign="center";
+  ctx.fillText("M E M O R Y",cx,DES_H*0.40);
+  if(u<5) caption("Brain caught it before it could bite twice.",fadeIO(u,5,1,0.6));
+  else if(u<11) caption("Every pain gets a name, and a card in the library.",fadeIO(u-5,6,0.6,0.6));
+  else caption("Filed. Most cards sleep forever. This one won't.",fadeIO(u-11,5,0.6,0.5));
+}},
+/* ---- 3 · ACT II-a: THE NURSERY (9s) ---- */
+{ id:"nursery", name:"Act II — The Nursery", dur:9, pad:"nursery", draw(u){
+  bgFill("#071008","#04050a"); apply();
+  ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
+  for(let i=0;i<29;i++){ const col=i%8, row=(i/8)|0;                                       // 29 sleeping seeds
+    const x=DES_W*0.14+col*DES_W*0.104+((row%2)*30), y=DES_H*0.30+row*DES_H*0.14;
+    if(i===5) continue;                                                                    // our Seed drawn big below
+    apply(); seed(x,y,13,false,u,{ph:i*1.7}); }
+  apply(); seed(DES_W*0.5,DES_H*0.62,26,false,u,{ph:9});                                   // our protagonist
+  const sp=ctx.createRadialGradient(DES_W*0.5,DES_H*0.60,10,DES_W*0.5,DES_H*0.60,150);     // spotlight
+  sp.addColorStop(0,"rgba(255,217,138,.12)"); sp.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=sp; ctx.fillRect(0,0,DES_W,DES_H);
+  ctx.fillStyle=CO.muted; ctx.font="600 12px ui-monospace,monospace"; ctx.textAlign="center";
+  ctx.fillText("offered-not-assigned",DES_W*0.5,DES_H*0.62+52);
+  if(u<4.5) caption("Meanwhile: the idea nursery. Twenty-nine seeds, all asleep.",fadeIO(u,4.5,1,0.5));
+  else caption("This one is ours. Remember the leaf. It sleeps through everything.",fadeIO(u-4.5,4.5,0.5,0.5));
+}},
+/* ---- 4 · ACT II-b: THE HEIST (12s) ---- */
+{ id:"heist", name:"Act II — The Heist", dur:12, pad:"heist", draw(u){
+  bgFill("#0a0710","#04050a"); apply();
+  for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
+    const g=ctx.createRadialGradient(sx,DES_H*0.75,20,sx,DES_H*0.72,220);
+    g.addColorStop(0,"rgba(181,140,255,.14)");g.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=g; ctx.fillRect(0,0,DES_W,DES_H); }
+  const inA=eio(clamp01(u/1.6)), inB=eio(clamp01((u-1)/1.6));                               // rogues roll in
+  apply(); ctx.font="46px serif"; ctx.textAlign="center";
+  ctx.save(); ctx.translate(mix(-80,DES_W*0.3,inA),DES_H*0.62); ctx.rotate(Math.sin(u*4)*0.05*(u<2?1:0));
+  ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🔊",0,0); ctx.restore();
+  ctx.save(); ctx.translate(mix(DES_W+80,DES_W*0.7,inB),DES_H*0.62); ctx.rotate(Math.sin(u*4+2)*0.05*(u<2.6?1:0));
+  ctx.shadowBlur=18;ctx.shadowColor=CO.crea; ctx.fillText("🌳",0,0); ctx.restore();
+  ctx.font="13px Georgia,serif"; ctx.fillStyle=CO.muted;
+  if(u>1.8){ ctx.fillText("SHADOW — a soundboard",DES_W*0.3,DES_H*0.72);
+    ctx.fillText("DOG PARK 3D — a park",DES_W*0.7,DES_H*0.72); }
+  if(u>2.6){                                                                                // loot pours out
+    for(let i=0;i<26;i++){ const born=2.6+i*0.28; if(u<born) continue; const lu=u-born;
+      const src=i%2?DES_W*0.7:DES_W*0.3, isIdea=rnd(i*7)<0.58;
+      const arcx=src+(rnd(i)*2-1)*180*Math.min(1,lu/1.2), arcy=DES_H*0.62-Math.sin(Math.min(1,lu/1.2)*3.14)*130+Math.min(1,lu/1.2)*90;
+      if(lu<1.25){ apply(); ctx.globalAlpha=0.95; ctx.shadowBlur=8;
+        ctx.shadowColor=isIdea?CO.idea:CO.mem; ctx.fillStyle=isIdea?CO.ideaL:CO.memL;
+        ctx.beginPath();ctx.arc(arcx,arcy,5.5,0,6.28);ctx.fill(); ctx.globalAlpha=1; } } }
+  apply(); ctx.fillStyle="#12121e"; ctx.strokeStyle=CO.idea; ctx.lineWidth=2;               // the two bins
+  ctx.fillRect(DES_W*0.42,DES_H*0.76,80,54); ctx.strokeRect(DES_W*0.42,DES_H*0.76,80,54);
+  ctx.strokeStyle=CO.mem; ctx.strokeRect(DES_W*0.52,DES_H*0.76,80,54); ctx.fillRect(DES_W*0.52,DES_H*0.76,80,54);
+  ctx.fillStyle=CO.idea; ctx.font="11px ui-sans-serif"; ctx.fillText("IDEAS",DES_W*0.42+40,DES_H*0.76+70);
+  ctx.fillStyle=CO.mem; ctx.fillText("MEMORY",DES_W*0.52+40,DES_H*0.76+70);
+  if(u<5) caption("Then two strangers arrived, dragging sacks of everything they knew.",fadeIO(u,5,1,0.5));
+  else if(u<9) caption("Fifteen ideas. Ten wounds. Dumped in a single afternoon.",fadeIO(u-5,4,0.5,0.5));
+  else caption("The projects were left behind. The knowledge wasn't.",fadeIO(u-9,3,0.5,0.5));
+}},
+/* ---- 5 · gag card (4s) ---- */
+{ id:"gag", name:"Intertitle", dur:4, pad:"sleep", draw(u){
+  card("THE SEED — still asleep. Contributing nothing.","(it will be worth the wait)",fadeIO(u,4,0.5,0.5));
+}},
+/* ---- 6 · ACT III: THE RETRIEVAL (14s) ---- */
+{ id:"retrieve", name:"Act III — The Retrieval", dur:14, pad:"retrieve", draw(u){
+  bgFill("#0a0912","#04050a"); apply();
+  for(let i=0;i<4;i++){ const cx=DES_W*(0.2+i*0.2);                                        // library stacks
+    ctx.fillStyle="#141826"; ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=1.5;
+    ctx.fillRect(cx-56,DES_H*0.34,112,DES_H*0.44); ctx.strokeRect(cx-56,DES_H*0.34,112,DES_H*0.44);
+    for(let r2=0;r2<5;r2++){ ctx.strokeStyle="rgba(216,183,101,.28)";
+      ctx.strokeRect(cx-46,DES_H*0.34+12+r2*36,92,26); } }
+  const swp=Math.min(1,u/8), sx=mix(DES_W*0.2,DES_W*0.8,(Math.sin(u*0.9)*0.5+0.5)*swp*0+((u/8)%1)*swp)||DES_W*0.2;
+  const lx=DES_W*(0.2+Math.min(3,Math.floor(u/2))*0.2);                                    // light visits stacks
+  apply(); const bx=DES_W*0.5, by=DES_H*0.16; brainChar(bx,by,30,u);
+  const tx=u<8?lx:DES_W*0.6;
+  const g=ctx.createLinearGradient(bx,by,tx,DES_H*0.5);
+  g.addColorStop(0,"rgba(239,233,220,.4)"); g.addColorStop(1,"rgba(239,233,220,.03)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-8,by); ctx.lineTo(bx+8,by);
+  ctx.lineTo(tx+72,DES_H*0.62); ctx.lineTo(tx-72,DES_H*0.62); ctx.closePath(); ctx.fill();
+  if(u<7.5){ const which=Math.min(3,Math.floor(u/2));
+    if(which<2) caption('"…not you. …not you."',fadeIO(u,7.5,1,0.3));
+    else caption('"…not you…"',0.9); }
+  if(u>=7.5){                                                                              // found: yanked out
+    const yu=clamp01((u-7.5)/2.2), stretch=1+Math.sin(clamp01(yu*2)*3.14)*0.55;
+    const px=DES_W*0.6, py=mix(DES_H*0.56,DES_H*0.3,eio(yu));
+    apply(); ctx.save(); ctx.translate(px,py); ctx.scale(1/Math.sqrt(stretch),stretch);
+    lesson(0,0,24,1,u,{o:yu>0.3,closed:yu<0.15}); ctx.restore();
+    if(u<11) caption('"…YOU."',1);
+    else caption('"wait — me? I\'m a one-character typo!" — and up it went.',fadeIO(u-11,3,0.4,0.4));
+  }
+}},
+/* ---- 7 · ACT IV: THE COLLISION (16s) ---- */
+{ id:"forge", name:"Act IV — The Collision", dur:16, pad:"forge", draw(u){
+  bgFill("#120a08","#04050a"); apply();
+  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
+    ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
+  ctx.globalAlpha=1;
+  const fx=DES_W/2, fy=DES_H*0.58;
+  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;                        // the anvil pedestal
+  ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  const SL=[6.2,8.0,9.8];                                                                   // per-cousin slam times
+  if(u<11.2){ apply(); lesson(fx,fy-16,26,1,u,{});                                          // our Lesson on the anvil
+    for(let i=0;i<3;i++){ if(u>=SL[i]) continue;                                            // cousins orbit, accelerating
+      const on=eio(clamp01((u-1.4-i*0.7)/1)); if(on<=0) continue;
+      const spd=1.2+Math.pow(Math.max(0,u-2)*0.42,1.6), ang=i*2.09+u*spd;
+      let rad=mix(320,96,on); if(u>SL[i]-0.5) rad*=Math.max(0,1-(u-(SL[i]-0.5))/0.5);
+      const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
+      ctx.save(); ctx.globalAlpha=on;
+      ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;                              // motion streak
+      ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
+      lesson(x2,y2,15,0.8,u+i,{});
+      ctx.fillStyle=CO.ink; ctx.font="600 11px ui-monospace,monospace"; ctx.textAlign="center";
+      ctx.fillText(KIN[i],x2,y2-24); ctx.restore(); }
+    for(let i=0;i<3;i++){ if(u>=SL[i]&&u<SL[i]+0.5){ const k2=(u-SL[i])/0.5;                // shockwave rings
+        apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.memL; ctx.lineWidth=4;
+        ctx.beginPath();ctx.arc(fx,fy-16,40+k2*180,0,6.28);ctx.stroke(); ctx.globalAlpha=1; } }
+  }
+  const wo=u>10.6?clamp01((u-10.6)/0.7)*clamp01((12.6-u)/1.3):0;                            // whiteout
+  if(wo>0){ apply(); ctx.globalAlpha=wo; ctx.fillStyle="#fff8ec"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
+  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false);                           // the pattern gem
+    if(u>12.6) caption("Four wounds. One shape. The forge only keeps what generalizes.",fadeIO(u-12.6,3.4,0.5,0.4)); }
+  else if(u<5.5) caption("The forge. Three cousins answered the summons — every one a testing scar.",fadeIO(u,5.5,1,0.4));
+  const sh=[...SL,11].reduce((s,t2)=>Math.max(s,Math.max(0,0.6-Math.abs(u-t2))*14),0);      // screen shake
+  if(sh>0.5){ ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+    ctx.translate((Math.random()-0.5)*sh*fit.dpr,(Math.random()-0.5)*sh*fit.dpr);
+    // (shake applied by translating the backing store copy is overkill; the flash+rings carry it)
+    ctx.restore(); }
+}},
+/* ---- 8 · ACT V-a: THE WALL (10s) ---- */
+{ id:"wall", name:"Act V — The Wall", dur:10, pad:"wall", draw(u){
+  bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
+  castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
+  const set=eio(clamp01((u-1.2)/1.8));                                                     // gem flies to slot
+  const gx=mix(DES_W*0.2,DES_W/2+68*1.7+18,set), gy=mix(DES_H*0.3,DES_H*0.74-57*1.7+12,set)-Math.sin(set*3.14)*80;
+  apply(); gem(gx,gy,set<1?26:18,u,set>=1);
+  if(u>3&&u<6){ const rp=(u-3)/3;                                                          // light ripples along mortar
+    apply(); ctx.globalAlpha=(1-rp)*0.7; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(DES_W/2+68*1.7+18,DES_H*0.74-57*1.7+12,rp*300,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
+  if(u<4) caption("They set it where the wall had failed.",fadeIO(u,4,1,0.4));
+  else caption("What hurt us now holds the wall. It looks pretty happy about it.",fadeIO(u-4,6,0.5,0.5));
+}},
+/* ---- 9 · ACT V-b: THE GATE (14s) ---- */
+{ id:"gate", name:"Act V — The Gate", dur:14, pad:"gate", draw(u){
+  bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
+  const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
+  const walk=eio(clamp01((u-4)/5));
+  const gateO=eio(clamp01((u-7.5)/2));
+  castleFar(DES_W*0.68,DES_H*0.74,1.7,u,{gate:gateO});
+  const sx=mix(DES_W*0.16,DES_W*0.68,walk), sy=DES_H*0.78-Math.abs(Math.sin(walk*22))*10*(walk>0&&walk<1?1:0);
+  apply(); if(walk<0.98) seed(sx,sy,24,wu>=1,u,{o:wu>0.4&&wu<1.2});
+  else { ctx.save(); ctx.translate(DES_W*0.68,DES_H*0.74);                                  // inside: an NPC now
+    ctx.globalAlpha=0.9; seed(0,-16,20,true,u,{}); ctx.fillStyle=CO.gold;
+    ctx.font="700 22px ui-sans-serif"; ctx.textAlign="center";
+    ctx.fillText("!",0,-58+Math.sin(u*4)*4); ctx.restore(); }
+  if(u>10.5){ for(let i=0;i<5;i++){ const bt=10.5+i*0.6; if(u<bt) continue; const k2=(u-bt)/0.9; if(k2>1) continue; // fireworks
+      const fx2=DES_W*(0.3+rnd(i*11)*0.5), fy2=DES_H*(0.2+rnd(i*7)*0.2);
+      apply(); for(let j=0;j<10;j++){ const a2=j/10*6.2832;
+        ctx.globalAlpha=1-k2; ctx.fillStyle=[CO.gold,CO.ideaL,CO.crea][j%3];
+        ctx.beginPath();ctx.arc(fx2+Math.cos(a2)*k2*70,fy2+Math.sin(a2)*k2*70,2.6,0,6.28);ctx.fill(); }
+      ctx.globalAlpha=1; } }
+  if(u<1.6) caption("…and back in the nursery: silence.",fadeIO(u,1.6,0.6,0.2));
+  else if(u<4) caption("After four acts of sleeping — the eyes open.",fadeIO(u-1.6,2.4,0.4,0.3));
+  else if(u<8) caption("It knew exactly where it was going. It had always known.",fadeIO(u-4,4,0.5,0.4));
+  else caption("A smith named Doran offers you a bounty, if you want it. No pressure.",fadeIO(u-8,6,0.5,0.6));
+}},
+/* ---- 10 · FINALE (11s) ---- */
+{ id:"finale", name:"Finale", dur:11, pad:"finale", draw(u){
+  const z=eio(clamp01(u/7));                                                               // slow pull-back
+  bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
+  const s2=mix(2.6,0.85,z);
+  castleFar(DES_W/2,DES_H*0.7,s2,u,{gate:1});
+  if(z>0.5){ apply(); for(let i=0;i<14;i++){                                               // the garden appears around it
+      const gx2=DES_W*(0.14+rnd(i*13)*0.72), gy2=DES_H*(0.82+rnd(i*5)*0.08);
+      const isI=i%2===0, r2=5+rnd(i)*7;
+      ctx.globalAlpha=(z-0.5)*2; ctx.shadowBlur=6; ctx.shadowColor=isI?CO.idea:CO.mem;
+      ctx.fillStyle=isI?CO.ideaL:CO.memL; ctx.beginPath();ctx.arc(gx2,gy2,r2,0,6.28);ctx.fill();
+      ctx.globalAlpha=1; ctx.shadowBlur=0; } }
+  if(u>4){ apply(); const a2=fadeIO(u-4,7,0.8,10);
+    ctx.globalAlpha=a2; ctx.textAlign="center";
+    ctx.fillStyle=CO.idea; ctx.font="700 40px ui-sans-serif"; ctx.fillText(Math.round(65*clamp01((u-4)/3)),DES_W*0.38,DES_H*0.30);
+    ctx.fillStyle=CO.mem;  ctx.fillText(Math.round(26*clamp01((u-4)/3)),DES_W*0.62,DES_H*0.30);
+    ctx.font="13px ui-sans-serif"; ctx.fillStyle=CO.muted;
+    ctx.fillText("ideas ✦",DES_W*0.38,DES_H*0.34); ctx.fillText("memories ♦",DES_W*0.62,DES_H*0.34); ctx.globalAlpha=1; }
+  if(u<5) caption("The wall was built from what hurt us.",fadeIO(u,5,1.2,0.4));
+  else caption("The world inside was built from what we dreamed.",fadeIO(u-5,6,0.5,1.5));
+}},
+/* ---- 11 · CREDITS (34s) ---- */
+{ id:"credits", name:"Credits", dur:34, pad:"credits", draw(u){
+  bgFill("#04050a","#04050a"); apply(); ctx.textAlign="center";
+  const rows=[["≡ CAST — in order of appearance ≡","h"],["",""],
+    ["THE LESSON — renderer-mutated-sim-state","b"],["THE SEED — offered-not-assigned","b"],
+    ["BRAIN — as itself","b"],["THE COUSINS — "+KIN.join(" · "),"s"],["",""],
+    ["≡ THE 65 IDEAS ≡","h"],
+    ...IDEA_CREDITS.map(n=>[n,"s"]),["",""],
+    ["≡ THE MEMORIES — 28 wounds on file (26 made the montage) ≡","h"],
+    ...MEM_CREDITS.map(n=>[n,"s"]),["",""],
+    ["≡ CREW ≡","h"],
+    ["directed by BRAIN","b"],["written by MEMORY","b"],["costumes by CREATIVITY","b"],
+    ["stunts by TENSION (several still unresolved)","b"],["key grip — the authoritative reducer","s"],
+    ["catering — three discarded sandboxes","s"],["no ideas were harmed; two were merged","s"],["",""],
+    ["★ thank you for watching ★","h"],["cast your vote in the lobby →","b"]];
+  const speed=(rows.length*30+DES_H)/32;                                                    // fits the scene
+  const off=DES_H-LBAR+40-u*speed;
+  rows.forEach((r2,i)=>{ const y=off+i*30; if(y<LBAR-10||y>DES_H-LBAR+20) return;
+    if(r2[1]==="h"){ ctx.fillStyle=CO.gold; ctx.font="600 17px Georgia,serif"; }
+    else if(r2[1]==="b"){ ctx.fillStyle=CO.ink; ctx.font="15px Georgia,serif"; }
+    else { ctx.fillStyle=CO.muted; ctx.font="13px ui-monospace,monospace"; }
+    ctx.fillText(r2[0],DES_W/2,y); });
+}}];
+const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
+
+/* SFX beats (absolute film time) */
+const BEATS=[];
+(function(){ const at=(sc,off,f)=>BEATS.push({t:STARTS[SCENES.findIndex(s=>s.id===sc)]+off,f});
+  at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("cold",8.1,SFX.pop);
+  at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
+  at("file",7.2,SFX.thunk); at("file",13.8,SFX.thunk); at("file",5.4,SFX.chime);
+  at("nursery",2,SFX.snore); at("nursery",5.5,SFX.snore);
+  at("heist",0.4,SFX.whoosh); at("heist",1.4,SFX.whoosh);
+  at("heist",3,SFX.pop); at("heist",4.4,SFX.pop); at("heist",6,SFX.pop); at("heist",7.6,SFX.pop);
+  at("retrieve",2,SFX.pop); at("retrieve",4,SFX.pop); at("retrieve",6,SFX.pop);
+  at("retrieve",7.6,SFX.wake); at("retrieve",8.4,SFX.whoosh);
+  at("forge",6.2,SFX.slam); at("forge",8.0,SFX.slam); at("forge",9.8,SFX.slam); at("forge",11,SFX.bigslam);
+  at("forge",12.8,SFX.chime);
+  at("wall",2.8,SFX.thunk); at("wall",3.2,SFX.bell);
+  at("gate",2.4,SFX.wake); at("gate",8,SFX.bell); at("gate",10.6,SFX.fanfare);
+  at("finale",4.2,()=>chord(PADS.finale,4,0.35,"triangle"));
+  BEATS.sort((a,b)=>a.t-b.t);
+})();
+
+/* ============ player ============ */
+let T=0,prevPad=null,playing=false,lastMs=0,scrubDrag=false,started=false;
+function sceneAt(t){ let i=SCENES.length-1; for(let j=0;j<SCENES.length;j++) if(t<STARTS[j]+SCENES[j].dur){i=j;break;} return i; }
+function drawFilm(){
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
+  const i=sceneAt(T), sc=SCENES[i], u=T-STARTS[i];
+  apply(); sc.draw(Math.min(u,sc.dur));
+  grainAndVignette(1); bars();
+  apply(); ctx.textAlign="left"; ctx.fillStyle="rgba(184,188,198,.65)"; ctx.font="11px Georgia,serif";
+  ctx.fillText(sc.name,16,DES_H-LBAR+30);
+}
+function tick(ms){ const dt=Math.min(0.05,(ms-lastMs)/1000||0); lastMs=ms;
+  if(playing&&T<DUR){ const pT=T; T+=dt;
+    for(const b of BEATS) if(pT<b.t&&T>=b.t){ try{b.f();}catch(e){} }
+    const i=sceneAt(T), pad=SCENES[i].pad;
+    if(pad!==prevPad){ prevPad=pad; try{ chord(PADS[pad]||PADS.title,3.2,0.22,"sine"); }catch(e){} }
+    if(SCENES[i].id==="finale"||SCENES[i].id==="credits"){ try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
+    if(T>=DUR){ T=DUR; playing=false; $("play").textContent="↻"; }
+  }
+  drawFilm(); syncUI(); requestAnimationFrame(tick);
+}
+function fmt(t){ const m=(t/60)|0, s=Math.floor(t%60); return m+":"+String(s).padStart(2,"0"); }
+function syncUI(){ $("time").textContent=fmt(T)+" / "+fmt(DUR); if(!scrubDrag)$("scrub").value=Math.round(T/DUR*1000); }
+$("play").onclick=()=>{ if(T>=DUR)T=0; playing=!playing; $("play").textContent=playing?"⏸":"▶"; };
+$("prev").onclick=()=>{ const i=sceneAt(Math.max(0,T-0.5)); T=STARTS[Math.max(0,T-STARTS[i]<1?i-1:i)]; };
+$("next").onclick=()=>{ const i=sceneAt(T); if(i<SCENES.length-1)T=STARTS[i+1]; };
+$("mute").onclick=()=>{ muted=!muted; $("mute").textContent=muted?"🔇":"🔊"; };
+$("scrub").addEventListener("input",e=>{ scrubDrag=true; T=e.target.value/1000*DUR; drawFilm(); });
+$("scrub").addEventListener("change",()=>{ scrubDrag=false; });
+STARTS.forEach((s,i)=>{ if(i===0)return; const el=document.createElement("i"); el.style.left=(s/DUR*100)+"%"; $("chap").appendChild(el); });
+$("begin").onclick=()=>{ $("gate").style.display="none"; audioInit(); started=true;
+  if(REDUCE){ T=STARTS[STARTS.length-2]; drawFilm(); playing=false; $("play").textContent="▶";
+    try{localStorage.setItem("srv_watched_film","1");}catch(e){} }
+  else { T=0; playing=true; } };
+window.__film={ seek:t=>{T=t;drawFilm();}, dur:()=>DUR, scene:()=>SCENES[sceneAt(T)].id, state:()=>({T,DUR,playing}) };
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
