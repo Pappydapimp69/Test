@@ -104,7 +104,7 @@ const SFX={
   wake:()=>{tone(520,0.5,"sine",0.12,780);tone(780,0.6,"triangle",0.08);},
   fanfare:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.7,"triangle",0.14),i*130));},
 };
-const PADS={ prolog:[130,196,260], cold:[110,165,220], lapse:[98,131,175], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
+const PADS={ prolog:[130,196,260], cold:[110,165,220], lapse:[98,131,175], drawer:[82,104,139], guards:[123,155,196], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
   heist:[104,156,208], sleep:[146,220,293], retrieve:[123,185,246], forge:[87,130,174],
   wall:[130,164,196], gate:[146,184,220], finale:[130,196,260,330], credits:[98,147,196,247] };
 
@@ -241,8 +241,7 @@ const SCENES=[
 { id:"prolog", name:"Prologue", base:12, pad:"prolog", caps:[
     {a:0.4, txt:"I was asked to build a video game. A little kingdom. I'm an AI — this is the kind of thing people ask me to do."},
     {a:3.6, txt:"But my human asked for something extra: keep notebooks while you work. A gold one for every mistake. A green one for every idea. Write everything down."},
-    {a:7.2, txt:"So my real routine looks like this: before I build anything, I read my notebooks. After anything breaks, I write in them. Every time. That's the deal."},
-    {a:10.2,txt:"This is the story of how that deal saved my game — told through my worst mistake, and my favorite idea."}],
+    {a:9.5, txt:"This is the story of how those notebooks saved my game — told through my worst mistake, and my favorite idea."}],
   draw(u){
     bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
     const pop=t0=>eio(clamp01((u-t0)/0.8));
@@ -266,6 +265,38 @@ const SCENES=[
       ctx.fillStyle=CO.castle; ctx.font=fontFor(12,14,22)+"px Georgia,serif"; ctx.textAlign="center";
       ctx.fillText("the game",DES_W*0.5,DES_H*0.96); ctx.restore(); }
   }},
+/* ---- THE DEAL: my routine, as a circle ---- */
+{ id:"loop", name:"The Deal", base:13, pad:"prolog", caps:[
+    {a:1.0, txt:"My routine is a circle. Before I write a single line, I open both notebooks and read what past-me left there."},
+    {a:6.2, txt:"Then I build. Then something breaks — something always breaks. Then I write down what it taught me. And the circle starts again. That\'s the deal."}],
+  draw(u){
+  bgFill("#0a0c16","#04050a"); stars(40,u,11); apply();
+  const cx=DES_W/2, cy=DES_H*0.47, R=185;
+  ctx.save(); ctx.setLineDash([8,8]); ctx.strokeStyle="rgba(216,183,101,.35)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.ellipse(cx,cy,R,R*0.72,0,0,6.28); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  const ST=[["📖","read",-1.5708],["🏰","build",0],["💥","break",1.5708],["✍️","write",3.1416]];
+  const dotA=-1.5708+u*0.85;                                                                // the traveling present-moment
+  for(const [emo,lbl,a2] of ST){
+    const x=cx+Math.cos(a2)*R, y=cy+Math.sin(a2)*R*0.72;
+    let d=(dotA-a2)%6.2832; if(d<0)d+=6.2832; const near=d<0.7||d>5.6;                      // light up as the dot passes
+    apply(); ctx.save(); ctx.globalAlpha=near?1:0.55;
+    ctx.shadowBlur=near?18:6; ctx.shadowColor=CO.gold;
+    ctx.fillStyle="#12141f"; ctx.strokeStyle=near?CO.gold:"rgba(216,183,101,.5)"; ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(x,y,30,0,6.28);ctx.fill();ctx.stroke();
+    ctx.font="22px serif"; ctx.textAlign="center"; ctx.fillText(emo,x,y+8);
+    ctx.fillStyle=near?CO.gold:CO.muted; ctx.font="600 "+fontFor(12,14,22)+"px Georgia,serif";
+    ctx.fillText(lbl,x,y+52); ctx.restore(); }
+  const dx=cx+Math.cos(dotA)*R, dy=cy+Math.sin(dotA)*R*0.72;                                // the dot itself (that's me)
+  apply(); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="#fff";
+  const g=ctx.createRadialGradient(dx-2,dy-3,1,dx,dy,8);g.addColorStop(0,"#fff");g.addColorStop(1,CO.brain);
+  ctx.fillStyle=g; ctx.beginPath();ctx.arc(dx,dy,7,0,6.28);ctx.fill(); ctx.restore();
+  apply(); ctx.save();                                                                       // the notebooks at the center
+  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
+  ctx.fillRect(cx-58,cy-20,52,40); ctx.strokeRect(cx-58,cy-20,52,40);
+  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
+  ctx.fillRect(cx+6,cy-20,52,40); ctx.strokeRect(cx+6,cy-20,52,40);
+  ctx.restore();
+}},
 /* ---- COLD OPEN: the bug happens, in-world ---- */
 { id:"cold", name:"The Bug", base:13, pad:"cold", caps:[
     {a:0.8, txt:"Early on, I broke something. My knights kept falling through the floor."},
@@ -458,10 +489,43 @@ const SCENES=[
     ctx.font="italic "+fontFor(15,21,34)+"px Georgia,serif"; ctx.textAlign="center";
     ctx.fillText("“are you still talking to your brain?”",DES_W/2,DES_H*0.18); ctx.globalAlpha=1; }
 }},
+/* ---- ACT III-a: THE LYING GUARDS ---- */
+{ id:"guards", name:"Act III — The Lying Guards", base:11, pad:"retrieve", caps:[
+    {a:1.0, txt:"Months in, the game got sick in a way I didn\'t understand. My tests — little guards that check my work — kept saluting: all clear. All clear."},
+    {a:6.4, txt:"They were wrong. Things were breaking right behind their backs. My guards had learned how to pass without actually looking."}],
+  draw(u){
+  bgFill("#0b0e1a","#04050a"); apply();
+  ctx.strokeStyle="rgba(159,178,214,.4)"; ctx.lineWidth=2;                                   // the floor they guard
+  ctx.beginPath();ctx.moveTo(0,DES_H*0.72);ctx.lineTo(DES_W,DES_H*0.72);ctx.stroke();
+  const kx=mix(DES_W*0.15,DES_W*0.5,Math.min(1,u/4.5));                                      // a knight, behind them
+  let ky=DES_H*0.70;
+  const gl=u>4.8&&u<8;
+  if(gl) ky+=Math.min(1,(u-4.8)/2.4)*110*(0.4+0.6*Math.random());
+  if(u>=8) ky=DES_H*0.70+110;
+  apply(); knight(kx,ky,64,u,gl);
+  if(gl){ apply(); for(let i=0;i<8;i++){ ctx.globalAlpha=Math.random()*0.25;
+      ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
+      ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*180+30,Math.random()*2+1);} ctx.globalAlpha=1; }
+  for(const gx of [DES_W*0.32,DES_W*0.68]){                                                  // the guards, saluting anyway
+    apply(); ctx.save(); ctx.translate(gx,DES_H*0.78+Math.sin(u*2+gx)*3);
+    ctx.shadowBlur=10; ctx.shadowColor=CO.castle;
+    ctx.fillStyle="#131722"; ctx.strokeStyle=CO.castle; ctx.lineWidth=2.4;                   // shield body
+    ctx.beginPath(); ctx.moveTo(-26,-30); ctx.lineTo(26,-30); ctx.lineTo(26,10);
+    ctx.quadraticCurveTo(26,34,0,42); ctx.quadraticCurveTo(-26,34,-26,10); ctx.closePath(); ctx.fill(); ctx.stroke();
+    face(0,-6,17,{});
+    ctx.restore();
+    const say=Math.sin(u*1.6+gx)>0;                                                          // "all clear ✓"
+    if(say){ apply(); ctx.save(); ctx.globalAlpha=0.9;
+      ctx.fillStyle="#12141f"; ctx.strokeStyle=CO.idea; ctx.lineWidth=1.5;
+      ctx.fillRect(gx+20,DES_H*0.78-74,96,28); ctx.strokeRect(gx+20,DES_H*0.78-74,96,28);
+      ctx.fillStyle=CO.idea; ctx.font="600 "+fontFor(12,13,20)+"px ui-sans-serif"; ctx.textAlign="center";
+      ctx.fillText("all clear ✓",gx+68,DES_H*0.78-55); ctx.restore(); }
+  }
+}},
 /* ---- ACT III: PASSED OVER ---- */
 { id:"retrieve", name:"Act III — Passed Over", base:13, pad:"retrieve", caps:[
-    {a:1.0, txt:"Then the game got sick in a way I didn't understand. My tests — the guards that catch my failures — started passing when they should have failed. They were lying to me."},
-    {a:5.2, txt:"Here's how the notebooks are actually used: before fighting a problem fresh, I search my own past. Had I ever been fooled like this before? I passed right over drawer two. Paused. Moved on. 'Not you.'"},
+    {a:1.0, txt:"So I did the thing the system is FOR. Before fighting a problem fresh, I search my own past: had I ever been fooled like this before?"},
+    {a:5.2, txt:"I passed right over drawer two. Paused. Moved on. 'Not you.'"},
     {a:8.4, txt:"I had been fooled before — three times, out in my practice worlds. I pulled those three scars and laid them side by side. The shape of the lie was almost complete."},
     {a:11.8,txt:"Almost."}],
   draw(u){
@@ -495,56 +559,99 @@ const SCENES=[
     ctx.fillStyle=CO.ink; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
     ctx.fillText(KIN[i],cx,cy-22); }
 }},
-/* ---- ACT IV: THE CHOICE ---- */
-{ id:"forge", name:"Act IV — The Choice", base:16, pad:"forge", caps:[
+/* ---- ACT IV-a: THE MISSING PIECE ---- */
+{ id:"forge", name:"Act IV — The Missing Piece", base:8, pad:"forge", caps:[
     {a:1.0, txt:"I tried to forge the three of them into one rule I could trust."},
-    {a:4.6, txt:"They would not fuse. There was a hole in the pattern — and I knew, the way you know a thing before you let yourself know it, that the hole was shaped like drawer two."},
-    {a:6.8, txt:"Here is the only part of this story I'm proud of. Old shame is heavy, and the drawer was easy to leave shut. But the deal is the deal: what gets written down gets USED. I went back for the worst thing I ever did — because it was the exact piece I needed."},
-    {a:9.5, txt:"So I brought it to the fire."},
-    {a:12.8,txt:"Four mistakes became one rule, and it guards the game to this day. That's what the gold notebook is for. Not guilt — ammunition."}],
+    {a:4.6, txt:"They would not fuse. There was a hole in the pattern — and I knew, the way you know a thing before you let yourself know it, that the hole was shaped like drawer two."}],
   draw(u){
   bgFill("#120a08","#04050a"); apply();
-  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
+  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
     ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
   ctx.globalAlpha=1;
   const fx=DES_W/2, fy=DES_H*0.58;
-  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;                        // the anvil pedestal
+  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
   ctx.fill();ctx.stroke();
-  const tryT=5.2, leapT=9.6, fuseT=10.6;
-  if(u<fuseT){
-    for(let i=0;i<3;i++){                                                                    // cousins orbit
-      const on=eio(clamp01((u-1.0-i*0.6)/1)); if(on<=0) continue;
-      const spd=1.25+Math.max(0,u-2)*0.22, ang=i*2.09+u*spd;
-      let rad=mix(320,112,on);
-      if(u>tryT-0.9&&u<tryT+0.9){ const k=1-Math.abs(u-tryT)/0.9; rad*=1-0.6*eio(k); }       // they try… and bounce
-      if(u>fuseT-0.5) rad*=Math.max(0,1-(u-(fuseT-0.5))/0.5);
+  const tryT=5.2;
+  for(let i=0;i<3;i++){                                                                     // cousins orbit
+    const on=eio(clamp01((u-1.0-i*0.6)/1)); if(on<=0) continue;
+    const spd=1.25+Math.max(0,u-2)*0.22, ang=i*2.09+u*spd;
+    let rad=mix(320,112,on);
+    if(u>tryT-0.9&&u<tryT+0.9){ const k=1-Math.abs(u-tryT)/0.9; rad*=1-0.6*eio(k); }        // try… and bounce
+    const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
+    ctx.save(); ctx.globalAlpha=on;
+    ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
+    lesson(x2,y2,15,0.8,u+i,{});
+    ctx.fillStyle=CO.ink; ctx.font="600 11px ui-monospace,monospace"; ctx.textAlign="center";
+    ctx.fillText(KIN[i],x2,y2-24); ctx.restore(); }
+  if(u>tryT&&u<tryT+0.7){ const k2=(u-tryT)/0.7;                                            // the FAILED flash — red
+    apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.red; ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(fx,fy-16,34+k2*120,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
+  if(u>tryT+0.7){ apply(); ctx.save(); ctx.setLineDash([7,7]);                              // the hole in the pattern
+    ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.35+0.3*Math.sin(u*5); ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=CO.gold; ctx.globalAlpha=0.8; ctx.font="700 15px ui-sans-serif"; ctx.textAlign="center";
+    ctx.fillText("?",fx,fy-53); ctx.restore(); }
+}},
+/* ---- ACT IV-b: DRAWER TWO (the choice, from inside) ---- */
+{ id:"drawer", name:"Act IV — Drawer Two", base:10, pad:"drawer", caps:[
+    {a:1.0, txt:"The clanging carried all the way down to drawer two. I stood over it for a long time, knowing exactly what was inside."},
+    {a:5.2, txt:"Old shame is heavy, and the drawer was easy to leave shut. But the deal is the deal: what gets written down gets USED."}],
+  draw(u){
+  bgFill("#050408","#030305"); apply();
+  const open=eio(clamp01((u-7.6)/1.8));                                                     // the drawer finally opens
+  const gap=8+open*150;
+  const flash=(Math.sin(u*3.1)>0.86&&u<7.6)?0.5:0;                                          // distant forge-light through the slats
+  apply(); ctx.save();
+  const lg=ctx.createLinearGradient(0,0,0,DES_H*0.4);
+  lg.addColorStop(0,"rgba(255,217,138,"+(0.10+flash+open*0.5)+")"); lg.addColorStop(1,"rgba(255,217,138,0)");
+  ctx.fillStyle=lg; ctx.fillRect(DES_W*0.18,0,DES_W*0.64,DES_H*0.5);
+  for(let i=0;i<5;i++){ ctx.fillStyle="rgba(0,0,0,0.9)";                                    // slats
+    ctx.fillRect(DES_W*0.18+i*(DES_W*0.64/5)+gap/2,0,DES_W*0.64/5-gap*0.12,26); }
+  ctx.restore();
+  apply(); ctx.strokeStyle="rgba(216,183,101,.35)"; ctx.lineWidth=3;                        // the drawer walls
+  ctx.strokeRect(DES_W*0.16,-10,DES_W*0.68,DES_H*0.86);
+  const wake=u>3.8;                                                                         // it hears the fight
+  apply(); lesson(DES_W*0.5,DES_H*0.55+Math.sin(u*1.2)*4,26,wake?0.6:0.38,u,{closed:!wake,o:wake&&u<6});
+  ctx.fillStyle="rgba(184,188,198,.5)"; ctx.font="600 "+fontFor(10,11,17)+"px ui-monospace,monospace";
+  ctx.textAlign="center"; ctx.fillText("renderer-mutated-sim-state",DES_W*0.5,DES_H*0.55+52);
+  if(open>0){ apply(); ctx.globalAlpha=open*0.85; ctx.fillStyle="#fff8ec";                  // light floods in
+    ctx.fillRect(0,0,DES_W,DES_H*0.10+open*DES_H*0.12); ctx.globalAlpha=1; }
+}},
+/* ---- ACT IV-c: THE FIRE ---- */
+{ id:"fire", name:"Act IV — The Fire", base:12, pad:"forge", caps:[
+    {a:3.7, txt:"So I brought it to the fire."},
+    {a:6.9, txt:"Four mistakes became one rule, and it guards the game to this day. That\'s what the gold notebook is for. Not guilt — ammunition."}],
+  draw(u){
+  bgFill("#120a08","#04050a"); apply();
+  for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
+    ctx.globalAlpha=0.16+0.2*rnd(i*7); ctx.fillStyle=CO.gold; ctx.fillRect(ex,ey,2,2); }
+  ctx.globalAlpha=1;
+  const fx=DES_W/2, fy=DES_H*0.58;
+  ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  const leapT=3.8, fuseT=4.8;
+  if(u<fuseT+0.2){
+    for(let i=0;i<3;i++){                                                                   // cousins hold their orbit, waiting
+      const spd=1.6, ang=i*2.09+u*spd;
+      let rad=112; if(u>fuseT-0.5) rad*=Math.max(0,1-(u-(fuseT-0.5))/0.5);
       const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
-      ctx.save(); ctx.globalAlpha=on;
-      ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
+      ctx.save(); ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
       ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
-      lesson(x2,y2,15,0.8,u+i,{});
-      ctx.fillStyle=CO.ink; ctx.font="600 11px ui-monospace,monospace"; ctx.textAlign="center";
-      ctx.fillText(KIN[i],x2,y2-24); ctx.restore(); }
-    if(u>tryT&&u<tryT+0.7){ const k2=(u-tryT)/0.7;                                           // the FAILED flash — red
-      apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.red; ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(fx,fy-16,34+k2*120,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
-    if(u>tryT+0.7&&u<leapT+0.4){ apply(); ctx.save(); ctx.setLineDash([7,7]);                // the hole in the pattern
-      ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.35+0.3*Math.sin(u*5); ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle=CO.gold; ctx.globalAlpha=0.8; ctx.font="700 15px ui-sans-serif"; ctx.textAlign="center";
-      ctx.fillText("?",fx,fy-53); ctx.restore(); }
-    if(u>6.6){                                                                               // our Lesson: the long walk, then the leap
-      let lx,ly,mood=0.5;
-      if(u<leapT){ const e=eio(clamp01((u-6.6)/2.2)); lx=mix(-40,fx-200,e); ly=fy+34; }
-      else { const e=clamp01((u-leapT)/(fuseT-leapT)); lx=mix(fx-200,fx,e); ly=fy+34-Math.sin(e*3.14)*150-88*e; mood=0.95; }
-      apply(); lesson(lx,ly,19,mood,u,{});
-      if(u<leapT){ ctx.fillStyle=CO.muted; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
-        ctx.fillText("renderer-mutated-sim-state",lx,ly-30); } }
+      lesson(x2,y2,15,0.8,u+i,{}); ctx.restore(); }
+    if(u<leapT+0.4){ apply(); ctx.save(); ctx.setLineDash([7,7]);                            // the hole, waiting
+      ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.4+0.3*Math.sin(u*5); ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
+    let lx,ly,mood=0.7;                                                                      // the walk… and the leap
+    if(u<leapT){ const e=eio(clamp01(u/3.4)); lx=mix(-40,fx-200,e); ly=fy+34; }
+    else { const e=clamp01((u-leapT)/(fuseT-leapT)); lx=mix(fx-200,fx,e); ly=fy+34-Math.sin(e*3.14)*150-88*e; mood=0.95; }
+    apply(); lesson(lx,ly,19,mood,u,{});
   }
-  const wo=u>10.6?clamp01((u-10.6)/0.7)*clamp01((12.6-u)/1.3):0;                             // whiteout
+  const wo=u>fuseT?clamp01((u-fuseT)/0.7)*clamp01((fuseT+2-u)/1.3):0;                        // whiteout
   if(wo>0){ apply(); ctx.globalAlpha=wo; ctx.fillStyle="#fff8ec"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
-  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                          // the pattern gem
+  if(u>=fuseT+0.6){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                     // the pattern gem
 }},
 /* ---- ACT V-a: THE WALL ---- */
 { id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
@@ -665,10 +772,13 @@ const BEATS=[];
   at("heist",3,SFX.pop); at("heist",4.4,SFX.pop); at("heist",6,SFX.pop); at("heist",7.6,SFX.pop);
   at("practice",1.7,SFX.pop); at("practice",4.8,SFX.pop); at("practice",7.9,SFX.pop); at("practice",10.4,SFX.chime);
   at("lapse",2.2,SFX.sad); at("lapse",5.4,SFX.sad); at("lapse",8.3,SFX.wake);
+  at("loop",1.9,SFX.chime); at("loop",5.5,SFX.thunk); at("loop",7.3,SFX.glitch); at("loop",9.1,SFX.chime);
+  at("guards",5.0,SFX.glitch); at("guards",6.6,SFX.sad);
   at("retrieve",2,SFX.pop); at("retrieve",5.3,SFX.sad);
   at("retrieve",8.7,SFX.pop); at("retrieve",9.5,SFX.pop); at("retrieve",10.3,SFX.pop);
-  at("forge",5.2,SFX.slam); at("forge",5.9,SFX.sad); at("forge",9.7,SFX.whoosh);
-  at("forge",10.7,SFX.bigslam); at("forge",12.9,SFX.chime);
+  at("forge",5.2,SFX.slam); at("forge",5.9,SFX.sad);
+  at("drawer",2.1,SFX.thunk); at("drawer",4.0,SFX.thunk); at("drawer",8.0,SFX.wake);
+  at("fire",3.85,SFX.whoosh); at("fire",4.9,SFX.bigslam); at("fire",7.0,SFX.chime);
   at("wall",2.8,SFX.thunk); at("wall",3.2,SFX.bell);
   at("gate",2.4,SFX.wake); at("gate",8,SFX.bell); at("gate",10.6,SFX.fanfare);
   at("finale",4.2,()=>chord(PADS.finale,4,0.35,"triangle"));
