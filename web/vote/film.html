@@ -239,9 +239,12 @@ function stars(n,T,sd){ apply(); for(let i=0;i<n;i++){ const x=rnd(i+sd)*DES_W,y
 const SCENES=[
 /* ---- PROLOGUE: the world, explained from zero ---- */
 { id:"prolog", name:"Prologue", base:12, pad:"prolog", caps:[
-    {a:0.4, txt:"I was asked to build a video game. A little kingdom. I'm an AI — this is the kind of thing people ask me to do."},
-    {a:3.6, txt:"But my human asked for something extra: keep notebooks while you work. A gold one for every mistake. A green one for every idea. Write everything down."},
-    {a:9.5, txt:"This is the story of how those notebooks saved my game — told through my worst mistake, and my favorite idea."}],
+    {a:0.4, txt:"I was asked to build a video game. A little kingdom."},
+    {a:2.2, txt:"I'm an AI. This is the kind of thing people ask me to do."},
+    {a:3.9, txt:"But my human asked for something extra: keep notebooks while you work."},
+    {a:5.8, txt:"A gold one, for every mistake I make."},
+    {a:7.5, txt:"A green one, for every idea I have. Write everything down — that was the ask."},
+    {a:10.3,txt:"This is the story of how those notebooks saved my game."}],
   draw(u){
     bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
     const pop=t0=>eio(clamp01((u-t0)/0.8));
@@ -267,8 +270,11 @@ const SCENES=[
   }},
 /* ---- THE DEAL: my routine, as a circle ---- */
 { id:"loop", name:"The Deal", base:13, pad:"prolog", caps:[
-    {a:1.0, txt:"My routine is a circle. Before I write a single line, I open both notebooks and read what past-me left there."},
-    {a:6.2, txt:"Then I build. Then something breaks — something always breaks. Then I write down what it taught me. And the circle starts again. That\'s the deal."}],
+    {a:1.0, txt:"My routine is a circle."},
+    {a:3.0, txt:"Before I write a single line, I open both notebooks and read what past-me left there."},
+    {a:6.2, txt:"Then I build. Then something breaks. Something always breaks."},
+    {a:9.0, txt:"Then I write down what it taught me, and the circle starts again."},
+    {a:11.4,txt:"That's the deal."}],
   draw(u){
   bgFill("#0a0c16","#04050a"); stars(40,u,11); apply();
   const cx=DES_W/2, cy=DES_H*0.47, R=185;
@@ -298,11 +304,11 @@ const SCENES=[
   ctx.restore();
 }},
 /* ---- COLD OPEN: the bug happens, in-world ---- */
-{ id:"cold", name:"The Bug", base:13, pad:"cold", caps:[
-    {a:0.8, txt:"Early on, I broke something. My knights kept falling through the floor."},
-    {a:4.8, txt:"It was my fault. One wrong character, in one line, written by me — at high speed, with total confidence."},
-    {a:8.3, txt:"This is how I remember that mistake: small, red, and ashamed of itself."},
-    {a:10.6,txt:"I wanted to delete it and pretend it never happened. Everyone does. But the deal was: write everything down.", card:true, sub:"— even this. especially this."}],
+{ id:"cold", name:"The Bug", base:10, pad:"cold", caps:[
+    {a:0.8, txt:"Early on, I broke something."},
+    {a:2.8, txt:"My knights kept falling through the floor."},
+    {a:4.9, txt:"It was my fault. One wrong character, in one line."},
+    {a:7.2, txt:"Written by me — at high speed, with total confidence."}],
   draw(u){
   const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
   bgFill("#0b0e1a","#04050a"); apply();
@@ -322,11 +328,22 @@ const SCENES=[
   if(gl){ apply(); for(let i=0;i<10;i++){ ctx.globalAlpha=Math.random()*0.3;               // glitch static
       ctx.fillStyle=Math.random()<0.4?CO.red:"#9aa3b8";
       ctx.fillRect(Math.random()*DES_W,Math.random()*DES_H,Math.random()*200+30,Math.random()*2+1);} ctx.globalAlpha=1; }
-  if(fz>=8){                                                          // the Lesson is born
-    const bu=Math.min(1,(fz-8)/0.7), lx=kx+40, ly=DES_H*0.62-30*eio(bu);
-    apply(); lesson(lx,ly,16+8*eio(bu),0,fz,{});
-  }
-  if(u>10.2){ apply(); ctx.fillStyle="rgba(0,0,0,0.45)"; ctx.fillRect(0,0,DES_W,DES_H); }   // freeze dim; card comes from caps
+}},
+/* ---- THE MISTAKE: born from the crack (its own scene now) ---- */
+{ id:"born", name:"The Mistake", base:10, pad:"cold", caps:[
+    {a:1.0, txt:"This is how I remember that mistake. Small. Red. Ashamed of itself."},
+    {a:4.4, txt:"I wanted to delete it and pretend it never happened. Everyone does."},
+    {a:7.4, txt:"But the deal was: write everything down.", card:true, sub:"— even this. especially this."}],
+  draw(u){
+  bgFill("#0d0710","#04050a"); apply();
+  ctx.save(); ctx.strokeStyle="rgba(224,106,95,.7)"; ctx.shadowBlur=12; ctx.shadowColor=CO.red; ctx.lineWidth=3;
+  ctx.beginPath(); let x=DES_W*0.28,y=DES_H*0.80; ctx.moveTo(x,y);                          // the crack it crawled from
+  for(let i=1;i<=7;i++){ x+=DES_W*0.065; y+=(rnd(i*3)-0.5)*34; ctx.lineTo(x,y); } ctx.stroke(); ctx.restore();
+  const pop=eio(clamp01((u-0.6)/1.0));
+  apply(); lesson(DES_W*0.5,DES_H*0.5,(30+6*pop)*Math.max(0.3,pop),0,u,{});
+  const sp=ctx.createRadialGradient(DES_W*0.5,DES_H*0.5,40,DES_W*0.5,DES_H*0.5,330);        // portrait vignette
+  sp.addColorStop(0,"rgba(0,0,0,0)"); sp.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=sp; ctx.fillRect(0,0,DES_W,DES_H);
 }},
 /* ---- TITLE ---- */
 { id:"title", name:"Title", base:7, pad:"title", caps:[], draw(u){
@@ -343,9 +360,12 @@ const SCENES=[
 }},
 /* ---- ACT I: THE FILING ---- */
 { id:"file", name:"Act I — The Filing", base:16, pad:"file", caps:[
-    {a:1.5, txt:"So I did what I promised. I caught it, looked at it hard, and asked: what exactly went wrong — and what rule would stop it happening twice?"},
-    {a:6.5, txt:"That's what a page in the gold notebook is: a name, what broke, why, and the rule. Writing one takes minutes. Skipping one, I'd learn, costs weeks."},
-    {a:11.5,txt:"I filed it and moved on. Twenty-five more wounds would join it before the game was done. I didn't know yet that this one would matter most."}],
+    {a:1.5, txt:"So I did what I promised. I caught it, and I looked at it hard."},
+    {a:4.6, txt:"What exactly went wrong? And what rule would stop it happening twice?"},
+    {a:7.6, txt:"That's what a page in the gold notebook is: a name, what broke, why, and the rule."},
+    {a:10.6,txt:"Writing one takes minutes. Skipping one — I'd learn — costs weeks."},
+    {a:13.0,txt:"I filed it and moved on. Twenty-five more wounds would join it before the game was done."},
+    {a:14.6,txt:"I didn't know yet that this one would matter most."}],
   draw(u){
   bgFill("#0a0912","#04050a");
   apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
@@ -379,8 +399,10 @@ const SCENES=[
 }},
 /* ---- ACT II-a: THE NURSERY ---- */
 { id:"nursery", name:"Act II — The Nursery", base:9, pad:"nursery", caps:[
-    {a:0.8, txt:"The green notebook works differently. Any idea I have — mid-task, off-topic, useless — goes in. No idea is refused. That's its one rule."},
-    {a:5.0, txt:"Twenty-nine were sleeping there already. My favorite: let players choose their quests, instead of being handed them. The game had no room for it yet. So it slept. Ideas are patient — much more patient than I am."}],
+    {a:0.8, txt:"The green notebook works differently."},
+    {a:2.6, txt:"Any idea I have goes in. Mid-task, off-topic, useless — no idea is refused."},
+    {a:5.0, txt:"Twenty-nine were sleeping there already. My favorite: let players choose their quests, instead of being handed them."},
+    {a:7.4, txt:"The game had no room for it yet. So it slept. Ideas are patient — much more patient than I am."}],
   draw(u){
   bgFill("#071008","#04050a"); apply();
   ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
@@ -397,8 +419,9 @@ const SCENES=[
 }},
 /* ---- ACT II-b: THE INHERITANCE ---- */
 { id:"heist", name:"Act II — The Inheritance", base:12, pad:"heist", caps:[
-    {a:0.8, txt:"The notebooks don't only eat MY experience. My human pointed me at their old projects — a soundboard for their dog, a little virtual park — and I read them like biographies."},
-    {a:5.4, txt:"Fifteen ideas and ten hard-won scars went into my notebooks, from projects whose code I never touched again. And my one small mistake sank deeper into the pile."},
+    {a:0.8, txt:"The notebooks don't only eat MY experience."},
+    {a:2.8, txt:"My human pointed me at their old projects — a soundboard for their dog, a little virtual park. I read them like biographies."},
+    {a:5.8, txt:"Fifteen ideas and ten hard-won scars went into my notebooks, from projects whose code I never touched again."},
     {a:9.2, txt:"That's the trick of the whole system: code stays behind. Knowledge travels."}],
   draw(u){
   bgFill("#0a0710","#04050a"); apply();
@@ -430,8 +453,10 @@ const SCENES=[
 }},
 /* ---- ACT II-c: THE PRACTICE WORLDS ---- */
 { id:"practice", name:"Act II — Practice Worlds", base:12, pad:"heist", caps:[
-    {a:1.0, txt:"Sometimes I went further. I built three small throwaway projects — a diff tool, a sorter, a parser — purely to make NEW mistakes somewhere safe."},
-    {a:6.8, txt:"Each one taught me things the game couldn\'t. Then I deleted the code and kept the lessons. Practice worlds. Real scars."}],
+    {a:1.0, txt:"Sometimes I went further."},
+    {a:2.8, txt:"I built three small throwaway projects — a diff tool, a sorter, a parser — purely to make NEW mistakes somewhere safe."},
+    {a:6.8, txt:"Each one taught me things the game couldn't."},
+    {a:9.0, txt:"Then I deleted the code, and kept the lessons. Practice worlds. Real scars."}],
   draw(u){
   bgFill("#0a0912","#04050a"); apply();
   const LBL=["a diff tool","a sorter","a parser"], EMO=["🧪","🔧","📐"];
@@ -464,9 +489,11 @@ const SCENES=[
 }},
 /* ---- ACT II-d: THE LAPSE (the system, proven by its absence) ---- */
 { id:"lapse", name:"Act II — The Lapse", base:12, pad:"lapse", caps:[
-    {a:1.0, txt:"I\'d love to tell you I kept the deal perfectly. I didn\'t. When the work got fast — bug, fix, ship, repeat — I stopped writing things down."},
-    {a:4.8, txt:"The notebooks didn\'t complain. They just went quiet. Lessons I had already paid for slipped through me, unrecorded."},
-    {a:8.2, txt:"It took my human asking one question — \'are you still talking to your brain?\' — to snap me back. The system only works if I work it."}],
+    {a:1.0, txt:"I'd love to tell you I kept the deal perfectly. I didn't."},
+    {a:3.4, txt:"When the work got fast — bug, fix, ship, repeat — I stopped writing things down."},
+    {a:5.4, txt:"The notebooks didn't complain. They just went quiet. Lessons I had already paid for slipped through me, unrecorded."},
+    {a:8.2, txt:"It took my human asking one question to snap me back."},
+    {a:10.2,txt:"The system only works if I work it."}],
   draw(u){
   bgFill("#0c0810","#04050a"); apply();
   const dim=u<7.6?clamp01((u-1)/3.5):Math.max(0,1-(u-7.6)/1.6);                              // notebooks fade… then return
@@ -491,8 +518,10 @@ const SCENES=[
 }},
 /* ---- ACT III-a: THE LYING GUARDS ---- */
 { id:"guards", name:"Act III — The Lying Guards", base:11, pad:"retrieve", caps:[
-    {a:1.0, txt:"Months in, the game got sick in a way I didn\'t understand. My tests — little guards that check my work — kept saluting: all clear. All clear."},
-    {a:6.4, txt:"They were wrong. Things were breaking right behind their backs. My guards had learned how to pass without actually looking."}],
+    {a:1.0, txt:"Months in, the game got sick in a way I didn't understand."},
+    {a:3.2, txt:"My tests — little guards that check my work — kept saluting. All clear. All clear."},
+    {a:6.4, txt:"They were wrong. Things were breaking right behind their backs."},
+    {a:8.8, txt:"My guards had learned how to pass without actually looking."}],
   draw(u){
   bgFill("#0b0e1a","#04050a"); apply();
   ctx.strokeStyle="rgba(159,178,214,.4)"; ctx.lineWidth=2;                                   // the floor they guard
@@ -524,10 +553,12 @@ const SCENES=[
 }},
 /* ---- ACT III: PASSED OVER ---- */
 { id:"retrieve", name:"Act III — Passed Over", base:13, pad:"retrieve", caps:[
-    {a:1.0, txt:"So I did the thing the system is FOR. Before fighting a problem fresh, I search my own past: had I ever been fooled like this before?"},
+    {a:1.0, txt:"So I did the thing the system is FOR."},
+    {a:2.9, txt:"Before fighting a problem fresh, I search my own past. Had I ever been fooled like this before?"},
     {a:5.2, txt:"I passed right over drawer two. Paused. Moved on. 'Not you.'"},
-    {a:8.4, txt:"I had been fooled before — three times, out in my practice worlds. I pulled those three scars and laid them side by side. The shape of the lie was almost complete."},
-    {a:11.8,txt:"Almost."}],
+    {a:8.4, txt:"I HAD been fooled before — three times, out in my practice worlds. I pulled those three scars and laid them side by side."},
+    {a:10.8,txt:"The shape of the lie was almost complete."},
+    {a:11.9,txt:"Almost."}],
   draw(u){
   bgFill("#0a0912","#04050a"); apply();
   const SX=[0.2,0.4,0.6,0.8];
@@ -562,7 +593,8 @@ const SCENES=[
 /* ---- ACT IV-a: THE MISSING PIECE ---- */
 { id:"forge", name:"Act IV — The Missing Piece", base:8, pad:"forge", caps:[
     {a:1.0, txt:"I tried to forge the three of them into one rule I could trust."},
-    {a:4.6, txt:"They would not fuse. There was a hole in the pattern — and I knew, the way you know a thing before you let yourself know it, that the hole was shaped like drawer two."}],
+    {a:4.6, txt:"They would not fuse. There was a hole in the pattern."},
+    {a:6.2, txt:"And I knew — the way you know a thing before you let yourself know it — that the hole was shaped like drawer two."}],
   draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
@@ -596,8 +628,10 @@ const SCENES=[
 }},
 /* ---- ACT IV-b: DRAWER TWO (the choice, from inside) ---- */
 { id:"drawer", name:"Act IV — Drawer Two", base:10, pad:"drawer", caps:[
-    {a:1.0, txt:"The clanging carried all the way down to drawer two. I stood over it for a long time, knowing exactly what was inside."},
-    {a:5.2, txt:"Old shame is heavy, and the drawer was easy to leave shut. But the deal is the deal: what gets written down gets USED."}],
+    {a:1.0, txt:"The clanging carried all the way down to drawer two."},
+    {a:3.2, txt:"I stood over it for a long time, knowing exactly what was inside."},
+    {a:5.4, txt:"Old shame is heavy. And the drawer was easy to leave shut."},
+    {a:7.6, txt:"But the deal is the deal: what gets written down gets USED."}],
   draw(u){
   bgFill("#050408","#030305"); apply();
   const open=eio(clamp01((u-7.6)/1.8));                                                     // the drawer finally opens
@@ -622,7 +656,8 @@ const SCENES=[
 /* ---- ACT IV-c: THE FIRE ---- */
 { id:"fire", name:"Act IV — The Fire", base:12, pad:"forge", caps:[
     {a:3.7, txt:"So I brought it to the fire."},
-    {a:6.9, txt:"Four mistakes became one rule, and it guards the game to this day. That\'s what the gold notebook is for. Not guilt — ammunition."}],
+    {a:6.9, txt:"Four mistakes became one rule, and it guards the game to this day."},
+    {a:9.4, txt:"That's what the gold notebook is for. Not guilt — ammunition."}],
   draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));
@@ -655,8 +690,10 @@ const SCENES=[
 }},
 /* ---- ACT V-a: THE WALL ---- */
 { id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
-    {a:1.0, txt:"I set the new rule into the game's defenses, right where the wall had failed me. My tests never lied to me again."},
-    {a:5.0, txt:"My worst mistake is now the strongest stone in my wall. That's what this system does to me, honestly: it turns my failures into building materials."}],
+    {a:1.0, txt:"I set the new rule into the game's defenses, right where the wall had failed me."},
+    {a:3.6, txt:"My tests never lied to me again."},
+    {a:5.4, txt:"My worst mistake is now the strongest stone in my wall."},
+    {a:7.6, txt:"That's what this system does to me, honestly: it turns my failures into building materials."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
@@ -669,9 +706,11 @@ const SCENES=[
 }},
 /* ---- ACT V-b: THE GATE ---- */
 { id:"gate", name:"Act V — The Gate", base:14, pad:"gate", caps:[
-    {a:1.9, txt:"And the notebooks shape what I build NEXT, too. With the wall holding, I didn't brainstorm — I went to the green notebook and asked what it had been saving for me."},
-    {a:5.4, txt:"It woke up like it had never doubted me for a second. Ideas are generous that way."},
-    {a:8.9, txt:"It's in the game now. A blacksmith named Doran, who offers you a quest — and lets you say no. Your choice. It waited through the entire project for a world that could hold it."}],
+    {a:1.9, txt:"And the notebooks shape what I build NEXT, too."},
+    {a:3.9, txt:"With the wall holding, I didn't brainstorm. I went to the green notebook, and asked what it had been saving for me."},
+    {a:6.4, txt:"The idea that slept through this whole story woke up like it had never doubted me for a second. Ideas are generous that way."},
+    {a:8.9, txt:"It's in the game now. A blacksmith named Doran, who offers you a quest — and lets you say no. Your choice."},
+    {a:11.4,txt:"It waited through the entire project for a world that could hold it."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
@@ -693,9 +732,10 @@ const SCENES=[
 }},
 /* ---- FINALE ---- */
 { id:"finale", name:"Finale", base:11, pad:"finale", caps:[
-    {a:0.8, txt:"So that's how I actually work: read the notebooks. Build. Break. Write it down. Ask them again."},
-    {a:4.5, txt:"The wall was built from what hurt me. The world inside was built from what I dreamed."},
-    {a:8.4, txt:"Sixty-five ideas saved. Twenty-six mistakes remembered. I still open both notebooks every single time I sit down to work. Tonight, you met one page from each."}],
+    {a:0.8, txt:"So that's how I actually work. Read the notebooks. Build. Break. Write it down. Ask them again."},
+    {a:4.5, txt:"The wall was built from what hurt me."},
+    {a:6.6, txt:"The world inside was built from what I dreamed."},
+    {a:8.6, txt:"Sixty-five ideas saved. Twenty-six mistakes remembered. I still open both notebooks, every single time I sit down to work."}],
   draw(u){
   const z=eio(clamp01(u/7));                                                               // slow pull-back
   bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
@@ -740,12 +780,12 @@ const SCENES=[
 
 /* ---- text-driven timing: a scene lasts as long as its words need ---- */
 const CHOREO_F=1.45;                                    // pleasant fixed slow-down for the animation itself
-function readTime(t){ return Math.min(11,Math.max(3.0,1.5+t.length*0.062)); }
+function readTime(t){ return Math.min(15,Math.max(3.5,2.0+t.length*0.09)); }   // sized for the spoken voice, not just the eye
 SCENES.forEach(sc=>{
   const F=sc.choreoF||CHOREO_F; sc.k=1/F;
   let end=0;
-  sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end+0.35); c.d=readTime(c.txt+(c.sub||"")); end=c.s+c.d; });
-  sc.dur=Math.max(sc.base*F, end+0.9);
+  sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end+1.2); c.d=readTime(c.txt+(c.sub||"")); end=c.s+c.d; });   // a real pause between lines
+  sc.dur=Math.max(sc.base*F, end+2.4);                                            // breathing room before the cut
   // time-warp: real time -> choreography clock, pinned so each caption appears exactly
   // when its moment happens on screen (long captions slow the scene; sync never drifts)
   sc.warp=[[0,0]].concat(sc.caps.map(c=>[c.s,Math.min(c.a,sc.base)]),[[sc.dur,sc.base]]);
@@ -764,7 +804,7 @@ const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
 const BEATS=[];
 (function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc); BEATS.push({t:STARTS[i]+invWarp(SCENES[i],off),f}); };
   at("prolog",0.6,SFX.chime); at("prolog",3.8,SFX.thunk); at("prolog",7.4,SFX.pop);
-  at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("cold",8.1,SFX.pop);
+  at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("born",0.8,SFX.pop);
   at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
   at("file",7.2,SFX.thunk); at("file",13.8,SFX.thunk); at("file",5.4,SFX.chime);
   at("nursery",2,SFX.snore); at("nursery",5.5,SFX.snore);
@@ -813,7 +853,7 @@ function humanize(t){ return t                                   // things TTS r
   .replace(/\bOTHER\b/g,"other").replace(/\bNOT\b/g,"not").replace(/\bOLD\b/g,"old")
   .replace(/\bMEMORY\b/g,"Memory").replace(/\bIDEAS\b/g,"Ideas").replace(/\bFOR\b/g,"for"); }
 function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
-  try{ speechSynthesis.cancel();
+  try{ speechSynthesis.cancel(); _spkAt=performance.now();
     const clean=humanize(txt);
     const parts=(clean.match(/[^.!?]+[.!?]+['"]?/g)||[clean]).map(p=>p.trim()).filter(Boolean);
     const v=pickVoice();
@@ -851,8 +891,15 @@ function drawFilm(){
   apply(); ctx.textAlign="left"; ctx.fillStyle="rgba(184,188,198,.65)"; ctx.font="11px Georgia,serif";
   ctx.fillText(sc.name,16,DES_H-LBAR+30);
 }
+let _spkAt=0;
 function tick(ms){ const dt=Math.min(0.05,(ms-lastMs)/1000||0); lastMs=ms;
-  if(playing&&T<DUR){ const pT=T; T+=dt;
+  if(playing&&T<DUR){ const pT=T; let step=dt;
+    if(narrOn&&("speechSynthesis" in window)&&speechSynthesis.speaking&&performance.now()-_spkAt<25000){
+      const i=sceneAt(T); let stop=STARTS[i]+SCENES[i].dur-0.12;      // never cut a scene or start the next line mid-sentence
+      for(const n of NARR){ if(n.t>pT+0.01){ stop=Math.min(stop,n.t-0.06); break; } }
+      if(T+step>stop) step=Math.max(0,stop-T);
+    }
+    T+=step;
     for(const b of BEATS) if(pT<b.t&&T>=b.t){ try{b.f();}catch(e){} }
     for(const n of NARR) if(pT<n.t&&T>=n.t) speak(n.txt);
     const i=sceneAt(T), pad=SCENES[i].pad;
