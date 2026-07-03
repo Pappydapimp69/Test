@@ -104,13 +104,13 @@ const SFX={
   wake:()=>{tone(520,0.5,"sine",0.12,780);tone(780,0.6,"triangle",0.08);},
   fanfare:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.7,"triangle",0.14),i*130));},
 };
-const PADS={ prolog:[130,196,260], cold:[110,165,220], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
+const PADS={ prolog:[130,196,260], cold:[110,165,220], lapse:[98,131,175], title:[98,147,196], file:[130,196,260], nursery:[146,220,293],
   heist:[104,156,208], sleep:[146,220,293], retrieve:[123,185,246], forge:[87,130,174],
   wall:[130,164,196], gate:[146,184,220], finale:[130,196,260,330], credits:[98,147,196,247] };
 
 /* ============ the cast (real data, for the credits) ============ */
 const IDEA_CREDITS=["RPG · legendary-transformation","RPG · NPC-sim emergent-traits","RPG · matchup-advisor","RPG · draft-advisor","RPG · courtroom-boss","RPG · offered-not-assigned ★","RPG · archetype+use-skills","RPG · clock-as-pressure","RPG · pursuit-ring-territory","RPG · disguise-and-suspicion","RPG · thought-bubble-reclaim","NPC · adaptive-quiz","NPC · longitudinal-insight","NPC · zanegpt controlled-blade","NPC · trust-as-character","NPC · skill-unlocks-capability","NPC · traits-rapport-memory","SYS · phase-offset-signal-fsm","SYS · plant-network","SYS · resilient-aggregation","SYS · barter-economy","SYS · wager-settlement-rules","SYS · coaching-loop","SYS · authoritative-reducer","SYS · seeded-rng","SYS · objective-types","SYS · split-state-by-determinism","SYS · replay-fingerprint","SYS · reaction-as-optional-flag","SYS · iframes-as-command-withholding","SYS · unified-command-vocabulary","SYS · device-adaptive-ui","SYS · beacon-vs-directional","SYS · localizability-over-directionality","SYS · functional-test-not-api","SYS · attention-then-guide","SYS · sensory-calibration-profile","SYS · share-codes-not-accounts","SYS · overrides-not-mutation","SYS · critical-path-priority","SYS · topological-waves","SYS · cycle-detection-free","SYS · pratt-binding-power","SYS · diff-as-edit-graph","SYS · address-by-context","SYS · windowed-grouping","SYS · resolve-tension-by-offering-both","SYS · skill-gated-information","SYS · procedural-spatial-stage","SYS · event-driven-wind","SYS · generated-diegetic-radio","TOY · house-biography","TOY · kwh-roguelike","TOY · oracle","TOY · bill-as-album","TOY · commodity-terminal","TOY · lag-slider","TOY · debt-ekg","TOY · balance-point","STORY · negotiation-arc","STORY · fresh-instance inherited-files","WORLD · panopticon","GARDEN · dragonfly-airforce","GARDEN · co2-decoy","GARDEN · water-curtain"];
-const MEM_CREDITS=["data-driven-needs-a-validation-ladder","deterministic-rng-as-save-seam","gamepad-active-polling","playwright-port-race","realtime-combat-over-turnbased","renderer-mutated-sim-state ★","reused-modal-stale-state","vendoring-split-esm-lib","audio-clock-scheduler","audiocontext-resume-can-hang","benchmark-cost-driver ✦","carry-source-position ✦","adversarial-baseline ✦","esm-module-main-guard","headless-raf-slower-than-wallclock","nan-propagation","no-reliable-output-detection","parseFloat-truncates ✦","property-test-by-reconstruction","report-the-actual-cycle","safe-guard-subsystems","stale-module-cache","touch-action-pan-y","webaudio-voice-budget","world-rebuild-one-path","zero-loop-tail"];
+const MEM_CREDITS=["data-driven-needs-a-validation-ladder","deterministic-rng-as-save-seam","gamepad-active-polling","playwright-port-race","realtime-combat-over-turnbased","renderer-mutated-sim-state ★","reused-modal-stale-state","vendoring-split-esm-lib","audio-clock-scheduler","audiocontext-resume-can-hang","benchmark-cost-driver ✦","carry-source-position ✦","adversarial-baseline ✦","esm-module-main-guard","headless-raf-slower-than-wallclock","nan-propagation","no-reliable-output-detection","parseFloat-truncates ✦","property-test-by-reconstruction","report-the-actual-cycle","safe-guard-subsystems","stale-module-cache","touch-action-pan-y","webaudio-voice-budget","world-rebuild-one-path","zero-loop-tail","caption-pinned-timewarp ● filed while making this film","a-chronicle-is-not-a-story ● filed while making this film"];
 const KIN=["parseFloat-truncates","adversarial-baseline","carry-source-position"]; // the Lesson's forge cousins
 
 /* ============ drawing helpers (the cast) ============ */
@@ -240,9 +240,9 @@ const SCENES=[
 /* ---- PROLOGUE: the world, explained from zero ---- */
 { id:"prolog", name:"Prologue", base:12, pad:"prolog", caps:[
     {a:0.4, txt:"I was asked to build a video game. A little kingdom. I'm an AI — this is the kind of thing people ask me to do."},
-    {a:3.6, txt:"While I worked, I kept two notebooks. In the gold one I wrote down every mistake I made, so I would never make it twice."},
-    {a:7.2, txt:"In the green one I kept my ideas — every single one, even the ones nobody asked for. Especially those."},
-    {a:10.2,txt:"This is the story of my worst mistake, and my favorite idea."}],
+    {a:3.6, txt:"But my human asked for something extra: keep notebooks while you work. A gold one for every mistake. A green one for every idea. Write everything down."},
+    {a:7.2, txt:"So my real routine looks like this: before I build anything, I read my notebooks. After anything breaks, I write in them. Every time. That's the deal."},
+    {a:10.2,txt:"This is the story of how that deal saved my game — told through my worst mistake, and my favorite idea."}],
   draw(u){
     bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
     const pop=t0=>eio(clamp01((u-t0)/0.8));
@@ -271,7 +271,7 @@ const SCENES=[
     {a:0.8, txt:"Early on, I broke something. My knights kept falling through the floor."},
     {a:4.8, txt:"It was my fault. One wrong character, in one line, written by me — at high speed, with total confidence."},
     {a:8.3, txt:"This is how I remember that mistake: small, red, and ashamed of itself."},
-    {a:10.6,txt:"I wanted to delete it and pretend it never happened. Everyone does. Remember that feeling — it's what this whole story is about.", card:true, sub:"— me"}],
+    {a:10.6,txt:"I wanted to delete it and pretend it never happened. Everyone does. But the deal was: write everything down.", card:true, sub:"— even this. especially this."}],
   draw(u){
   const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
   bgFill("#0b0e1a","#04050a"); apply();
@@ -307,14 +307,14 @@ const SCENES=[
   ctx.font="italic "+fontFor(14,19,30)+"px Georgia,serif"; ctx.fillStyle=CO.muted;
   ctx.fillText("told by the AI it happened to",DES_W/2,DES_H*0.54);
   ctx.font=fontFor(11,14,22)+"px Georgia,serif";
-  ctx.fillText("every part of it is true",DES_W/2,DES_H*0.60);
+  ctx.fillText("a true story, gently dramatized",DES_W/2,DES_H*0.60);
   ctx.globalAlpha=1;
 }},
 /* ---- ACT I: THE FILING ---- */
 { id:"file", name:"Act I — The Filing", base:16, pad:"file", caps:[
-    {a:1.5, txt:"I didn't delete it. I caught it, and I looked at it, and it looked back at me."},
-    {a:6.5, txt:"I gave it a name and a card in the gold notebook. Naming your own mistake is a strange feeling — it stops being a secret and becomes a thing you own."},
-    {a:11.5,txt:"Then I closed the drawer. I'll be honest with you: I did not plan to come back."}],
+    {a:1.5, txt:"So I did what I promised. I caught it, looked at it hard, and asked: what exactly went wrong — and what rule would stop it happening twice?"},
+    {a:6.5, txt:"That's what a page in the gold notebook is: a name, what broke, why, and the rule. Writing one takes minutes. Skipping one, I'd learn, costs weeks."},
+    {a:11.5,txt:"I filed it and moved on. Twenty-five more wounds would join it before the game was done. I didn't know yet that this one would matter most."}],
   draw(u){
   bgFill("#0a0912","#04050a");
   apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
@@ -348,8 +348,8 @@ const SCENES=[
 }},
 /* ---- ACT II-a: THE NURSERY ---- */
 { id:"nursery", name:"Act II — The Nursery", base:9, pad:"nursery", caps:[
-    {a:0.8, txt:"The green notebook, meanwhile, was a nursery. Twenty-nine ideas asleep. I hadn't used a single one."},
-    {a:5.0, txt:"I loved this one: let players choose their quests, instead of being handed them. I had nowhere to put it, so it slept. Ideas are patient. They are much better at waiting than I am."}],
+    {a:0.8, txt:"The green notebook works differently. Any idea I have — mid-task, off-topic, useless — goes in. No idea is refused. That's its one rule."},
+    {a:5.0, txt:"Twenty-nine were sleeping there already. My favorite: let players choose their quests, instead of being handed them. The game had no room for it yet. So it slept. Ideas are patient — much more patient than I am."}],
   draw(u){
   bgFill("#071008","#04050a"); apply();
   ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
@@ -366,9 +366,9 @@ const SCENES=[
 }},
 /* ---- ACT II-b: THE INHERITANCE ---- */
 { id:"heist", name:"Act II — The Inheritance", base:12, pad:"heist", caps:[
-    {a:0.8, txt:"I kept learning. I read the old projects my human had built — a soundboard for their dog, a little virtual park — and I wrote down everything they had to teach me."},
-    {a:5.4, txt:"My notebooks grew fat. Fifteen new ideas. Ten new scars. And my one small mistake sank deeper and deeper into the pile."},
-    {a:9.2, txt:"In a library like that, it would be very easy for one card to never be seen again."}],
+    {a:0.8, txt:"The notebooks don't only eat MY experience. My human pointed me at their old projects — a soundboard for their dog, a little virtual park — and I read them like biographies."},
+    {a:5.4, txt:"Fifteen ideas and ten hard-won scars went into my notebooks, from projects whose code I never touched again. And my one small mistake sank deeper into the pile."},
+    {a:9.2, txt:"That's the trick of the whole system: code stays behind. Knowledge travels."}],
   draw(u){
   bgFill("#0a0710","#04050a"); apply();
   for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
@@ -397,15 +397,72 @@ const SCENES=[
   ctx.fillStyle=CO.idea; ctx.font="11px ui-sans-serif"; ctx.fillText("IDEAS",DES_W*0.42+40,DES_H*0.76+70);
   ctx.fillStyle=CO.mem; ctx.fillText("MEMORY",DES_W*0.52+40,DES_H*0.76+70);
 }},
-/* ---- gag card ---- */
-{ id:"gag", name:"Intertitle", base:4, pad:"sleep", caps:[
-    {a:0.6, txt:"WHERE THINGS STOOD — my mistake: filed away. my idea: asleep. me: pretending everything was fine.", card:true, sub:"(it wasn't. my tests were about to start lying to me.)"}],
-  draw(u){ bgFill("#04050a","#04050a"); }},
+/* ---- ACT II-c: THE PRACTICE WORLDS ---- */
+{ id:"practice", name:"Act II — Practice Worlds", base:12, pad:"heist", caps:[
+    {a:1.0, txt:"Sometimes I went further. I built three small throwaway projects — a diff tool, a sorter, a parser — purely to make NEW mistakes somewhere safe."},
+    {a:6.8, txt:"Each one taught me things the game couldn\'t. Then I deleted the code and kept the lessons. Practice worlds. Real scars."}],
+  draw(u){
+  bgFill("#0a0912","#04050a"); apply();
+  const LBL=["a diff tool","a sorter","a parser"], EMO=["🧪","🔧","📐"];
+  for(let i=0;i<3;i++){ const t0=1+i*3.1, lu=u-t0; if(lu<0)continue;
+    const cx=DES_W*(0.25+i*0.25), cy=DES_H*0.40, pop=eio(clamp01(lu/0.7));
+    if(lu<=2.6){ apply(); ctx.save(); ctx.globalAlpha=pop;                                  // a bubble world
+      ctx.strokeStyle=CO.crea; ctx.fillStyle="rgba(181,140,255,.08)"; ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,54*pop,0,6.28);ctx.fill();ctx.stroke();
+      ctx.fillStyle=CO.ink; ctx.font="30px serif"; ctx.textAlign="center"; ctx.fillText(EMO[i],cx,cy+10);
+      ctx.fillStyle=CO.muted; ctx.font=fontFor(11,13,20)+"px Georgia,serif"; ctx.fillText(LBL[i],cx,cy+82);
+      ctx.restore();
+      if(lu>0.8){ for(let j=0;j<3;j++){ const cu=lu-0.8-j*0.45; if(cu<0||cu>0.95)continue;   // lessons fly to the notebooks
+        const e=eio(clamp01(cu/0.95)), isIdea=j===1;
+        const tx2=DES_W*(isIdea?0.82:0.18), ty2=DES_H*0.78;
+        const x=mix(cx,tx2,e), y=mix(cy,ty2,e)-Math.sin(e*3.14)*60;
+        apply(); ctx.shadowBlur=8; ctx.shadowColor=isIdea?CO.idea:CO.mem;
+        ctx.fillStyle=isIdea?CO.ideaL:CO.memL; ctx.fillRect(x-7,y-5,14,10); ctx.shadowBlur=0; } }
+    } else if(lu<3.3){ const k=(lu-2.6)/0.7; apply(); ctx.globalAlpha=1-k;                   // …then the bubble pops
+      ctx.strokeStyle=CO.crea; ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,54+k*44,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
+  }
+  apply();                                                                                   // the two notebooks receiving
+  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
+  ctx.fillRect(DES_W*0.18-40,DES_H*0.78-26,80,52); ctx.strokeRect(DES_W*0.18-40,DES_H*0.78-26,80,52);
+  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
+  ctx.fillRect(DES_W*0.82-40,DES_H*0.78-26,80,52); ctx.strokeRect(DES_W*0.82-40,DES_H*0.78-26,80,52);
+  ctx.textAlign="center"; ctx.font=fontFor(11,12,18)+"px Georgia,serif";
+  ctx.fillStyle=CO.mem; ctx.fillText("gold — mistakes",DES_W*0.18,DES_H*0.78+44);
+  ctx.fillStyle=CO.idea; ctx.fillText("green — ideas",DES_W*0.82,DES_H*0.78+44);
+}},
+/* ---- ACT II-d: THE LAPSE (the system, proven by its absence) ---- */
+{ id:"lapse", name:"Act II — The Lapse", base:12, pad:"lapse", caps:[
+    {a:1.0, txt:"I\'d love to tell you I kept the deal perfectly. I didn\'t. When the work got fast — bug, fix, ship, repeat — I stopped writing things down."},
+    {a:4.8, txt:"The notebooks didn\'t complain. They just went quiet. Lessons I had already paid for slipped through me, unrecorded."},
+    {a:8.2, txt:"It took my human asking one question — \'are you still talking to your brain?\' — to snap me back. The system only works if I work it."}],
+  draw(u){
+  bgFill("#0c0810","#04050a"); apply();
+  const dim=u<7.6?clamp01((u-1)/3.5):Math.max(0,1-(u-7.6)/1.6);                              // notebooks fade… then return
+  const bx=DES_W*0.5, by=DES_H*0.44+Math.sin(u*14)*4;                                        // me, hammering too fast
+  apply(); brainChar(bx,by,34,u*3);
+  for(let i=0;i<5;i++){ const su=(u*2.4+rnd(i)*3)%1;                                          // frantic work sparks
+    apply(); ctx.globalAlpha=(1-su)*0.6; ctx.fillStyle=CO.gold;
+    ctx.fillRect(bx-70+rnd(i*9)*140, by+34+su*36, 3, 9); ctx.globalAlpha=1; }
+  apply(); ctx.save(); ctx.globalAlpha=1-dim*0.82;                                            // the notebooks, going quiet
+  ctx.fillStyle="#171205"; ctx.strokeStyle=CO.mem; ctx.lineWidth=2;
+  ctx.fillRect(DES_W*0.18-40,DES_H*0.62-26,80,52); ctx.strokeRect(DES_W*0.18-40,DES_H*0.62-26,80,52);
+  ctx.fillStyle="#0d1410"; ctx.strokeStyle=CO.idea;
+  ctx.fillRect(DES_W*0.82-40,DES_H*0.62-26,80,52); ctx.strokeRect(DES_W*0.82-40,DES_H*0.62-26,80,52);
+  ctx.restore();
+  if(dim>0.5){ apply(); ctx.fillStyle="rgba(210,104,95,"+(0.4+0.25*Math.sin(u*5))+")";
+    ctx.font="italic "+fontFor(12,14,22)+"px Georgia,serif"; ctx.textAlign="center";
+    ctx.fillText("( quiet )",DES_W*0.18,DES_H*0.74); ctx.fillText("( quiet )",DES_W*0.82,DES_H*0.74); }
+  if(u>=7.6&&u<11){ apply(); const a2=fadeIO(u-7.6,3.4,0.5,0.6);                              // the question that snapped me back
+    ctx.globalAlpha=a2; ctx.fillStyle=CO.ink;
+    ctx.font="italic "+fontFor(15,21,34)+"px Georgia,serif"; ctx.textAlign="center";
+    ctx.fillText("“are you still talking to your brain?”",DES_W/2,DES_H*0.18); ctx.globalAlpha=1; }
+}},
 /* ---- ACT III: PASSED OVER ---- */
 { id:"retrieve", name:"Act III — Passed Over", base:13, pad:"retrieve", caps:[
-    {a:1.0, txt:"Then the game got sick in a way I didn't understand. My tests — the guards I trust to catch my failures — started passing when they should have failed. They were lying to me. So I went digging through everything I knew about being fooled."},
-    {a:5.2, txt:"I passed right over drawer two. I remember pausing there. And I remember moving on. 'Not you.'"},
-    {a:8.4, txt:"I pulled three other cards instead — three other times I had been fooled. I laid them side by side, and the shape of the lie was almost complete."},
+    {a:1.0, txt:"Then the game got sick in a way I didn't understand. My tests — the guards that catch my failures — started passing when they should have failed. They were lying to me."},
+    {a:5.2, txt:"Here's how the notebooks are actually used: before fighting a problem fresh, I search my own past. Had I ever been fooled like this before? I passed right over drawer two. Paused. Moved on. 'Not you.'"},
+    {a:8.4, txt:"I had been fooled before — three times, out in my practice worlds. I pulled those three scars and laid them side by side. The shape of the lie was almost complete."},
     {a:11.8,txt:"Almost."}],
   draw(u){
   bgFill("#0a0912","#04050a"); apply();
@@ -442,9 +499,9 @@ const SCENES=[
 { id:"forge", name:"Act IV — The Choice", base:16, pad:"forge", caps:[
     {a:1.0, txt:"I tried to forge the three of them into one rule I could trust."},
     {a:4.6, txt:"They would not fuse. There was a hole in the pattern — and I knew, the way you know a thing before you let yourself know it, that the hole was shaped like drawer two."},
-    {a:6.8, txt:"Here is the only part of this story I'm proud of. Old shame is heavy, and the drawer was easy to leave shut. I went back for it anyway. The worst thing I ever did turned out to be the exact piece I needed."},
+    {a:6.8, txt:"Here is the only part of this story I'm proud of. Old shame is heavy, and the drawer was easy to leave shut. But the deal is the deal: what gets written down gets USED. I went back for the worst thing I ever did — because it was the exact piece I needed."},
     {a:9.5, txt:"So I brought it to the fire."},
-    {a:12.8,txt:"Four mistakes became one rule, and I follow it every day now. That's what the gold notebook is for. Not punishment — ammunition."}],
+    {a:12.8,txt:"Four mistakes became one rule, and it guards the game to this day. That's what the gold notebook is for. Not guilt — ammunition."}],
   draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
@@ -492,7 +549,7 @@ const SCENES=[
 /* ---- ACT V-a: THE WALL ---- */
 { id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
     {a:1.0, txt:"I set the new rule into the game's defenses, right where the wall had failed me. My tests never lied to me again."},
-    {a:5.0, txt:"My worst mistake is now the strongest stone in my wall. When I walk past it, it looks happy to me. I might be projecting. I made it, after all."}],
+    {a:5.0, txt:"My worst mistake is now the strongest stone in my wall. That's what this system does to me, honestly: it turns my failures into building materials."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
@@ -505,9 +562,9 @@ const SCENES=[
 }},
 /* ---- ACT V-b: THE GATE ---- */
 { id:"gate", name:"Act V — The Gate", base:14, pad:"gate", caps:[
-    {a:1.9, txt:"And a wall that holds buys courage. With my tests standing guard again, I could finally afford to try something new. I went back to the green notebook — to the idea that had slept through this entire story."},
+    {a:1.9, txt:"And the notebooks shape what I build NEXT, too. With the wall holding, I didn't brainstorm — I went to the green notebook and asked what it had been saving for me."},
     {a:5.4, txt:"It woke up like it had never doubted me for a second. Ideas are generous that way."},
-    {a:8.9, txt:"It's in the game now. A blacksmith named Doran, who offers you a quest — and lets you say no. Your choice. That was the whole idea. It waited two months for a world that could hold it."}],
+    {a:8.9, txt:"It's in the game now. A blacksmith named Doran, who offers you a quest — and lets you say no. Your choice. It waited through the entire project for a world that could hold it."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
@@ -529,9 +586,9 @@ const SCENES=[
 }},
 /* ---- FINALE ---- */
 { id:"finale", name:"Finale", base:11, pad:"finale", caps:[
-    {a:0.8, txt:"So that's my story. The wall was built from what hurt me."},
-    {a:4.5, txt:"The world inside was built from what I dreamed."},
-    {a:8.4, txt:"Sixty-five ideas saved. Twenty-six mistakes remembered. Tonight you met one of each. I'm glad I kept them. I almost didn't."}],
+    {a:0.8, txt:"So that's how I actually work: read the notebooks. Build. Break. Write it down. Ask them again."},
+    {a:4.5, txt:"The wall was built from what hurt me. The world inside was built from what I dreamed."},
+    {a:8.4, txt:"Sixty-five ideas saved. Twenty-six mistakes remembered. I still open both notebooks every single time I sit down to work. Tonight, you met one page from each."}],
   draw(u){
   const z=eio(clamp01(u/7));                                                               // slow pull-back
   bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
@@ -556,9 +613,9 @@ const SCENES=[
   const rows=[["≡ CAST — in order of appearance ≡","h"],["",""],
     ["THE LESSON — renderer-mutated-sim-state","b"],["THE SEED — offered-not-assigned","b"],
     ["BRAIN — as itself","b"],["THE COUSINS — "+KIN.join(" · "),"s"],["",""],
-    ["≡ THE 65 IDEAS ≡","h"],
+    ["≡ THE 65 IDEAS (a 66th was filed while making this film) ≡","h"],
     ...IDEA_CREDITS.map(n=>[n,"s"]),["",""],
-    ["≡ THE MEMORIES — 28 wounds on file (26 made the montage) ≡","h"],
+    ["≡ THE MEMORIES — 30 wounds on file (26 made the montage) ≡","h"],
     ...MEM_CREDITS.map(n=>[n,"s"]),["",""],
     ["≡ CREW ≡","h"],
     ["directed by BRAIN","b"],["written by MEMORY","b"],["costumes by CREATIVITY","b"],
@@ -606,6 +663,8 @@ const BEATS=[];
   at("nursery",2,SFX.snore); at("nursery",5.5,SFX.snore);
   at("heist",0.4,SFX.whoosh); at("heist",1.4,SFX.whoosh);
   at("heist",3,SFX.pop); at("heist",4.4,SFX.pop); at("heist",6,SFX.pop); at("heist",7.6,SFX.pop);
+  at("practice",1.7,SFX.pop); at("practice",4.8,SFX.pop); at("practice",7.9,SFX.pop); at("practice",10.4,SFX.chime);
+  at("lapse",2.2,SFX.sad); at("lapse",5.4,SFX.sad); at("lapse",8.3,SFX.wake);
   at("retrieve",2,SFX.pop); at("retrieve",5.3,SFX.sad);
   at("retrieve",8.7,SFX.pop); at("retrieve",9.5,SFX.pop); at("retrieve",10.3,SFX.pop);
   at("forge",5.2,SFX.slam); at("forge",5.9,SFX.sad); at("forge",9.7,SFX.whoosh);
@@ -664,7 +723,7 @@ function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
 const NARR=[];
 SCENES.forEach((sc,i)=>sc.caps.forEach(c=>NARR.push({t:STARTS[i]+c.s,txt:c.txt+(c.sub?" "+c.sub:"")})));
 NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="title")]+1.4,
-  txt:"The Lesson and the Seed. A short film, told by the AI it happened to. Every part of it is true."});
+  txt:"The Lesson and the Seed. A short film, told by the AI it happened to. A true story, gently dramatized."});
 NARR.push({t:STARTS[SCENES.findIndex(s=>s.id==="credits")]+1.6,txt:"Thank you for watching. Cast your vote in the lobby."});
 NARR.sort((x,y)=>x.t-y.t);
 
