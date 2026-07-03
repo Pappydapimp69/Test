@@ -99,6 +99,7 @@ const SFX={
   bigslam:()=>{noiseHit(0.6,0.9,700);tone(55,0.9,"sine",0.4,35);chord([220,277,330],1.2,0.25,"triangle");},
   bell:()=>{[660,990,1485].forEach(f=>tone(f,1.6,"triangle",0.08));},
   pop:()=>{tone(500,0.12,"square",0.1,900);},
+  sad:()=>{tone(320,0.9,"sine",0.11,170);},
   snore:()=>{tone(85,0.7,"sine",0.14,65);},
   wake:()=>{tone(520,0.5,"sine",0.12,780);tone(780,0.6,"triangle",0.08);},
   fanfare:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.7,"triangle",0.14),i*130));},
@@ -241,7 +242,7 @@ const SCENES=[
     {a:0.4, txt:"An AI was asked to build a video game — a little 3D kingdom called the Shattered Realm."},
     {a:3.6, txt:"As it worked, it kept two notebooks. The gold one is MEMORY: every mistake it ever made, written down so it is never made twice."},
     {a:7.2, txt:"The green one is IDEAS: every notion it ever had, saved for someday. Even the silly ones."},
-    {a:10.2,txt:"This is the true story of one mistake, and one idea."}],
+    {a:10.2,txt:"Tonight's story is about the most unwanted thing in that whole kingdom: a mistake."}],
   draw(u){
     bgFill("#0a0c16","#04050a"); stars(50,u,7); apply();
     const pop=t0=>eio(clamp01((u-t0)/0.8));
@@ -269,8 +270,8 @@ const SCENES=[
 { id:"cold", name:"The Bug", base:13, pad:"cold", caps:[
     {a:0.8, txt:"The game had a bug. Knights kept falling through the floor."},
     {a:4.8, txt:"The cause: one typo. The graphics code was overwriting the game's real state."},
-    {a:8.3, txt:"In this story, bugs look like this — small, red, and frightened."},
-    {a:10.6,txt:"This is a bug. By the end of this film, it will be holding up a castle.", card:true, sub:"— the narrator, who has seen the ending"}],
+    {a:8.3, txt:"And here it is: the mistake itself. Small, red, and certain of one thing — everyone hates a bug."},
+    {a:10.6,txt:"It has one wish: to be more than the worst thing it ever did.", card:true, sub:"— keep that wish in mind. it's the whole movie."}],
   draw(u){
   const fz=Math.min(u,10.2), gl=fz>4.5&&fz<8;                        // freeze after 10.2
   bgFill("#0b0e1a","#04050a"); apply();
@@ -311,9 +312,9 @@ const SCENES=[
 }},
 /* ---- ACT I: THE FILING ---- */
 { id:"file", name:"Act I — The Filing", base:16, pad:"file", caps:[
-    {a:1.5, txt:"The AI caught the bug before it could bite twice."},
-    {a:6.5, txt:"Every mistake gets a name and a card in the MEMORY library. This one: 'the renderer touched the game's state.'"},
-    {a:11.5,txt:"Filed forever. Most cards are never needed again. This one will be."}],
+    {a:1.5, txt:"It was caught before it could do it twice. It expected to be deleted."},
+    {a:6.5, txt:"Instead: a name, and a card in the MEMORY library. 'renderer-mutated-sim-state.' Not a name you give something you plan to visit."},
+    {a:11.5,txt:"The drawer closed. In the dark, the wish again: matter. Someday. Somehow."}],
   draw(u){
   bgFill("#0a0912","#04050a");
   apply(); ctx.fillStyle="rgba(216,183,101,.05)"; ctx.fillRect(0,0,DES_W,DES_H);
@@ -347,8 +348,8 @@ const SCENES=[
 }},
 /* ---- ACT II-a: THE NURSERY ---- */
 { id:"nursery", name:"Act II — The Nursery", base:9, pad:"nursery", caps:[
-    {a:0.8, txt:"Meanwhile: the IDEAS notebook. Twenty-nine ideas asleep, none of them used yet."},
-    {a:5.0, txt:"This one is ours: 'let players CHOOSE their quests instead of being handed them.' Remember the leaf. It sleeps through everything."}],
+    {a:0.8, txt:"Across the library, the IDEAS nursery: twenty-nine ideas asleep, none of them used yet."},
+    {a:5.0, txt:"This one shares the wish. 'Let players CHOOSE their quests instead of being handed them.' The game has no place for it — yet. So it sleeps, one leaf out, just in case."}],
   draw(u){
   bgFill("#071008","#04050a"); apply();
   ctx.fillStyle="#0d1410"; ctx.fillRect(0,DES_H*0.72,DES_W,DES_H*0.28);                    // soil
@@ -365,9 +366,9 @@ const SCENES=[
 }},
 /* ---- ACT II-b: THE INHERITANCE ---- */
 { id:"heist", name:"Act II — The Inheritance", base:12, pad:"heist", caps:[
-    {a:0.8, txt:"The AI also studied its owner's OLD projects — a dog soundboard, a virtual dog park."},
-    {a:5.4, txt:"It kept everything they had to teach: fifteen ideas and ten documented mistakes, poured into the notebooks in one afternoon."},
-    {a:9.2, txt:"The old projects stayed behind. What they knew came along."}],
+    {a:0.8, txt:"The library kept growing. The AI studied its owner's OLD projects — a dog soundboard, a virtual dog park — and kept every lesson they had."},
+    {a:5.4, txt:"Fifteen new ideas. Ten new mistakes. Wonderful for the AI. Terrible for one small card — buried deeper with every arrival."},
+    {a:9.2, txt:"The old cards in the drawer have a saying: 'Nobody comes back for us, kid.'"}],
   draw(u){
   bgFill("#0a0710","#04050a"); apply();
   for(const [i,sx] of [[0,DES_W*0.3],[1,DES_W*0.7]]){                                       // two spotlights
@@ -398,40 +399,52 @@ const SCENES=[
 }},
 /* ---- gag card ---- */
 { id:"gag", name:"Intertitle", base:4, pad:"sleep", caps:[
-    {a:0.6, txt:"THE IDEA — still asleep. Contributing nothing.", card:true, sub:"(it will be worth the wait)"}],
+    {a:0.6, txt:"STATUS REPORT — the mistake: filed away. the idea: asleep. combined contribution so far: nothing.", card:true, sub:"(hold on. stories need a low point.)"}],
   draw(u){ bgFill("#04050a","#04050a"); }},
-/* ---- ACT III: THE RETRIEVAL ---- */
-{ id:"retrieve", name:"Act III — The Retrieval", base:14, pad:"retrieve", caps:[
-    {a:1.0, txt:"Months later, the game needed better testing. The AI went looking through MEMORY for anything it knew about being fooled."},
-    {a:5.2, txt:"Not this card… not this one…"},
-    {a:7.7, txt:"This one. The bug from the beginning of our story."},
-    {a:11.2,txt:"'Me? I'm a one-character typo!' — and up it went."}],
+/* ---- ACT III: PASSED OVER ---- */
+{ id:"retrieve", name:"Act III — Passed Over", base:13, pad:"retrieve", caps:[
+    {a:1.0, txt:"Then the game got sick in a NEW way: its tests started lying — passing when they should have failed. The AI came hunting for everything it knew about being fooled."},
+    {a:5.2, txt:"The light reached drawer two. Paused. …and moved on. 'Not you.'"},
+    {a:8.4, txt:"Three OTHER cards rose — three testing mistakes. The pattern of the lie, almost complete."},
+    {a:11.8,txt:"Almost."}],
   draw(u){
   bgFill("#0a0912","#04050a"); apply();
-  for(let i=0;i<4;i++){ const cx=DES_W*(0.2+i*0.2);                                        // library stacks
+  const SX=[0.2,0.4,0.6,0.8];
+  for(let i=0;i<4;i++){ const cx=DES_W*SX[i];                                              // library stacks
     ctx.fillStyle="#141826"; ctx.strokeStyle="rgba(216,183,101,.4)"; ctx.lineWidth=1.5;
     ctx.fillRect(cx-56,DES_H*0.34,112,DES_H*0.44); ctx.strokeRect(cx-56,DES_H*0.34,112,DES_H*0.44);
     for(let r2=0;r2<5;r2++){ ctx.strokeStyle="rgba(216,183,101,.28)";
       ctx.strokeRect(cx-46,DES_H*0.34+12+r2*36,92,26); } }
-  const lx=DES_W*(0.2+Math.min(3,Math.floor(u/2))*0.2);                                    // light visits stacks
+  let tx;                                                                                   // the searchlight's path
+  if(u<4.4) tx=DES_W*(0.2+(Math.floor(u/2.2)%2)*0.2);
+  else if(u<6.0) tx=DES_W*0.6;                                                              // …the pause on OUR drawer
+  else tx=DES_W*SX[[0,1,3][Math.min(2,Math.floor((u-6.0)/1.5))]];                           // …then the cousins
   apply(); const bx=DES_W*0.5, by=DES_H*0.16; brainChar(bx,by,30,u);
-  const tx=u<8?lx:DES_W*0.6;
   const g=ctx.createLinearGradient(bx,by,tx,DES_H*0.5);
   g.addColorStop(0,"rgba(239,233,220,.4)"); g.addColorStop(1,"rgba(239,233,220,.03)");
   ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx-8,by); ctx.lineTo(bx+8,by);
   ctx.lineTo(tx+72,DES_H*0.62); ctx.lineTo(tx-72,DES_H*0.62); ctx.closePath(); ctx.fill();
-  if(u>=7.5){                                                                              // found: yanked out
-    const yu=clamp01((u-7.5)/2.2), stretch=1+Math.sin(clamp01(yu*2)*3.14)*0.55;
-    const px=DES_W*0.6, py=mix(DES_H*0.56,DES_H*0.3,eio(yu));
-    apply(); ctx.save(); ctx.translate(px,py); ctx.scale(1/Math.sqrt(stretch),stretch);
-    lesson(0,0,24,1,u,{o:yu>0.3,closed:yu<0.15}); ctx.restore();
-  }
+  const wx=DES_W*0.6, wy=DES_H*0.51, lit=u>=4.4&&u<6.0;                                     // our Lesson at the glass
+  apply(); ctx.save();
+  ctx.fillStyle="#0e1120"; ctx.fillRect(wx-32,wy-24,64,46);
+  lesson(wx,wy+2,13, lit?0.85:(u<4.4?0.5:0.3), u, {o:lit});                                 // hope… then crushed
+  ctx.globalAlpha=0.18; ctx.fillStyle="#9fb2d6"; ctx.fillRect(wx-32,wy-24,64,46);           // glass sheen
+  ctx.globalAlpha=1; ctx.strokeStyle=CO.mem; ctx.lineWidth=1.5; ctx.strokeRect(wx-32,wy-24,64,46);
+  ctx.fillStyle=CO.muted; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
+  ctx.fillText("drawer two",wx,wy+36); ctx.restore();
+  for(let i=0;i<3;i++){ const t0=8.6+i*0.8; if(u<t0)continue; const ru=eio(clamp01((u-t0)/1.4)); // the cousins rise
+    const cx=DES_W*SX[[0,1,3][i]], cy=mix(DES_H*0.5,DES_H*0.2,ru);
+    apply(); lesson(cx,cy,13,0.85,u+i,{});
+    ctx.fillStyle=CO.ink; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
+    ctx.fillText(KIN[i],cx,cy-22); }
 }},
-/* ---- ACT IV: THE COLLISION ---- */
-{ id:"forge", name:"Act IV — The Collision", base:16, pad:"forge", caps:[
-    {a:1.0, txt:"Three OTHER testing mistakes were pulled from the library too. On the surface, all four looked different."},
-    {a:4.6, txt:"But they were the same mistake wearing four costumes: trusting a test that couldn't actually fail."},
-    {a:12.8,txt:"Four mistakes, forged into one rule the AI now always follows. That is what a memory is FOR."}],
+/* ---- ACT IV: THE CHOICE ---- */
+{ id:"forge", name:"Act IV — The Choice", base:16, pad:"forge", caps:[
+    {a:1.0, txt:"The forge. Three mistakes, spun together to make one rule the game could trust."},
+    {a:4.6, txt:"They collided — and would NOT fuse. The pattern had a hole in it… a hole shaped exactly like a certain typo."},
+    {a:6.8, txt:"Down in drawer two, a choice: stay filed — safe, warm, never called a failure again — or climb out, in front of everyone, and say it: I am the missing mistake."},
+    {a:9.5, txt:"It jumped."},
+    {a:12.8,txt:"Four wounds. One rule. The forge keeps only what generalizes — and this time it kept everything."}],
   draw(u){
   bgFill("#120a08","#04050a"); apply();
   for(let i=0;i<16;i++){ const ex=rnd(i*3)*DES_W, ey=DES_H-((u*26+rnd(i)*400)%(DES_H*0.8));  // rising embers
@@ -441,31 +454,45 @@ const SCENES=[
   ctx.fillStyle="#1a1410"; ctx.strokeStyle=CO.gold; ctx.lineWidth=2;                        // the anvil pedestal
   ctx.beginPath();ctx.moveTo(fx-90,fy+46);ctx.lineTo(fx+90,fy+46);ctx.lineTo(fx+58,fy+8);ctx.lineTo(fx-58,fy+8);ctx.closePath();
   ctx.fill();ctx.stroke();
-  const SL=[6.2,8.0,9.8];                                                                   // per-cousin slam times
-  if(u<11.2){ apply(); lesson(fx,fy-16,26,1,u,{});                                          // our Lesson on the anvil
-    for(let i=0;i<3;i++){ if(u>=SL[i]) continue;                                            // cousins orbit, accelerating
-      const on=eio(clamp01((u-1.4-i*0.7)/1)); if(on<=0) continue;
-      const spd=1.2+Math.pow(Math.max(0,u-2)*0.42,1.6), ang=i*2.09+u*spd;
-      let rad=mix(320,96,on); if(u>SL[i]-0.5) rad*=Math.max(0,1-(u-(SL[i]-0.5))/0.5);
+  const tryT=5.2, leapT=9.6, fuseT=10.6;
+  if(u<fuseT){
+    for(let i=0;i<3;i++){                                                                    // cousins orbit
+      const on=eio(clamp01((u-1.0-i*0.6)/1)); if(on<=0) continue;
+      const spd=1.25+Math.max(0,u-2)*0.22, ang=i*2.09+u*spd;
+      let rad=mix(320,112,on);
+      if(u>tryT-0.9&&u<tryT+0.9){ const k=1-Math.abs(u-tryT)/0.9; rad*=1-0.6*eio(k); }       // they try… and bounce
+      if(u>fuseT-0.5) rad*=Math.max(0,1-(u-(fuseT-0.5))/0.5);
       const x2=fx+Math.cos(ang)*rad, y2=fy-16+Math.sin(ang)*rad*0.5;
       ctx.save(); ctx.globalAlpha=on;
-      ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;                              // motion streak
+      ctx.strokeStyle="rgba(242,220,160,.4)"; ctx.lineWidth=2;
       ctx.beginPath(); ctx.ellipse(fx,fy-16,rad,rad*0.5,0,ang-0.6,ang-0.1); ctx.stroke();
       lesson(x2,y2,15,0.8,u+i,{});
       ctx.fillStyle=CO.ink; ctx.font="600 11px ui-monospace,monospace"; ctx.textAlign="center";
       ctx.fillText(KIN[i],x2,y2-24); ctx.restore(); }
-    for(let i=0;i<3;i++){ if(u>=SL[i]&&u<SL[i]+0.5){ const k2=(u-SL[i])/0.5;                // shockwave rings
-        apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.memL; ctx.lineWidth=4;
-        ctx.beginPath();ctx.arc(fx,fy-16,40+k2*180,0,6.28);ctx.stroke(); ctx.globalAlpha=1; } }
+    if(u>tryT&&u<tryT+0.7){ const k2=(u-tryT)/0.7;                                           // the FAILED flash — red
+      apply(); ctx.globalAlpha=1-k2; ctx.strokeStyle=CO.red; ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(fx,fy-16,34+k2*120,0,6.28);ctx.stroke(); ctx.globalAlpha=1; }
+    if(u>tryT+0.7&&u<leapT+0.4){ apply(); ctx.save(); ctx.setLineDash([7,7]);                // the hole in the pattern
+      ctx.strokeStyle=CO.gold; ctx.globalAlpha=0.35+0.3*Math.sin(u*5); ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(fx,fy-58,16,0,6.28);ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=CO.gold; ctx.globalAlpha=0.8; ctx.font="700 15px ui-sans-serif"; ctx.textAlign="center";
+      ctx.fillText("?",fx,fy-53); ctx.restore(); }
+    if(u>6.6){                                                                               // our Lesson: the long walk, then the leap
+      let lx,ly,mood=0.5;
+      if(u<leapT){ const e=eio(clamp01((u-6.6)/2.2)); lx=mix(-40,fx-200,e); ly=fy+34; }
+      else { const e=clamp01((u-leapT)/(fuseT-leapT)); lx=mix(fx-200,fx,e); ly=fy+34-Math.sin(e*3.14)*150-88*e; mood=0.95; }
+      apply(); lesson(lx,ly,19,mood,u,{});
+      if(u<leapT){ ctx.fillStyle=CO.muted; ctx.font="600 10.5px ui-monospace,monospace"; ctx.textAlign="center";
+        ctx.fillText("renderer-mutated-sim-state",lx,ly-30); } }
   }
-  const wo=u>10.6?clamp01((u-10.6)/0.7)*clamp01((12.6-u)/1.3):0;                            // whiteout
+  const wo=u>10.6?clamp01((u-10.6)/0.7)*clamp01((12.6-u)/1.3):0;                             // whiteout
   if(wo>0){ apply(); ctx.globalAlpha=wo; ctx.fillStyle="#fff8ec"; ctx.fillRect(0,0,DES_W,DES_H); ctx.globalAlpha=1; }
-  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                         // the pattern gem
+  if(u>=11.2){ apply(); gem(fx,fy-30,44+4*Math.sin(u*2),u,false); }                          // the pattern gem
 }},
 /* ---- ACT V-a: THE WALL ---- */
 { id:"wall", name:"Act V — The Wall", base:10, pad:"wall", caps:[
-    {a:1.0, txt:"The new rule was built into the game's defenses — the tests that guard every change."},
-    {a:5.0, txt:"What hurt us now holds the wall. It looks pretty happy about it."}],
+    {a:1.0, txt:"The rule was set into the game's defenses, exactly where the wall had failed. The tests never lied again."},
+    {a:5.0, txt:"It wished to be more than the worst thing it ever did. It is now the strongest stone in the wall. And it looks pretty happy about it."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   castleFar(DES_W/2,DES_H*0.74,1.7,u,{slot:u<3});
@@ -478,9 +505,9 @@ const SCENES=[
 }},
 /* ---- ACT V-b: THE GATE ---- */
 { id:"gate", name:"Act V — The Gate", base:14, pad:"gate", caps:[
-    {a:1.9, txt:"And the sleeping idea? The game finally had room for it. After a whole story of sleeping — the eyes opened."},
+    {a:1.9, txt:"A wall that holds buys courage. With the tests standing guard, the AI could finally afford something NEW — and remembered a seed that had waited through this whole story."},
     {a:5.4, txt:"It knew exactly where it was going. It had always known."},
-    {a:8.9, txt:"It became a character: Doran the smith, who OFFERS you a quest instead of assigning one. Your choice. The idea, playable."}],
+    {a:8.9, txt:"It became Doran the smith — who OFFERS you a quest instead of assigning one. Your choice. That was the idea all along. Playable at last, because the wall held."}],
   draw(u){
   bgFill("#0d1020","#04050a"); stars(40,u,3); apply();
   const wu=clamp01((u-1.6)/1.2);                                                           // the seed wakes
@@ -504,7 +531,7 @@ const SCENES=[
 { id:"finale", name:"Finale", base:11, pad:"finale", caps:[
     {a:0.8, txt:"The wall was built from what hurt us."},
     {a:4.5, txt:"The world inside was built from what we dreamed."},
-    {a:8.4, txt:"65 ideas saved. 26 mistakes remembered. You just watched one of each come true."}],
+    {a:8.4, txt:"65 ideas saved. 26 mistakes remembered. Tonight you met one of each — and watched a mistake choose to matter."}],
   draw(u){
   const z=eio(clamp01(u/7));                                                               // slow pull-back
   bgFill("#0d1020","#04050a"); stars(70,u,5); apply();
@@ -555,12 +582,23 @@ SCENES.forEach(sc=>{
   let end=0;
   sc.caps.forEach(c=>{ c.s=Math.max(c.a*F, end+0.35); c.d=readTime(c.txt+(c.sub||"")); end=c.s+c.d; });
   sc.dur=Math.max(sc.base*F, end+0.9);
+  // time-warp: real time -> choreography clock, pinned so each caption appears exactly
+  // when its moment happens on screen (long captions slow the scene; sync never drifts)
+  sc.warp=[[0,0]].concat(sc.caps.map(c=>[c.s,Math.min(c.a,sc.base)]),[[sc.dur,sc.base]]);
 });
+function warpU(sc,u){ const P=sc.warp; if(u<=0)return 0;
+  for(let i=1;i<P.length;i++){ if(u<=P[i][0]){ const t0=P[i-1][0],b0=P[i-1][1],t1=P[i][0],b1=P[i][1];
+    return b0+(b1-b0)*((u-t0)/Math.max(0.001,t1-t0)); } }
+  return sc.base; }
+function invWarp(sc,b){ const P=sc.warp;
+  for(let i=1;i<P.length;i++){ if(b<=P[i][1]){ const t0=P[i-1][0],b0=P[i-1][1],t1=P[i][0],b1=P[i][1];
+    return t0+(t1-t0)*((b-b0)/Math.max(0.001,b1-b0)); } }
+  return sc.dur; }
 const STARTS=[]; let DUR=0; SCENES.forEach(s=>{STARTS.push(DUR); DUR+=s.dur;});
 
 /* SFX beats (scene-relative on the base clock, mapped to real time) */
 const BEATS=[];
-(function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc); BEATS.push({t:STARTS[i]+off/SCENES[i].k,f}); };
+(function(){ const at=(sc,off,f)=>{ const i=SCENES.findIndex(s=>s.id===sc); BEATS.push({t:STARTS[i]+invWarp(SCENES[i],off),f}); };
   at("prolog",0.6,SFX.chime); at("prolog",3.8,SFX.thunk); at("prolog",7.4,SFX.pop);
   at("cold",4.6,SFX.glitch); at("cold",6.2,SFX.glitch); at("cold",8.1,SFX.pop);
   at("title",0.8,()=>chord(PADS.title,3,0.3,"triangle"));
@@ -568,10 +606,10 @@ const BEATS=[];
   at("nursery",2,SFX.snore); at("nursery",5.5,SFX.snore);
   at("heist",0.4,SFX.whoosh); at("heist",1.4,SFX.whoosh);
   at("heist",3,SFX.pop); at("heist",4.4,SFX.pop); at("heist",6,SFX.pop); at("heist",7.6,SFX.pop);
-  at("retrieve",2,SFX.pop); at("retrieve",4,SFX.pop); at("retrieve",6,SFX.pop);
-  at("retrieve",7.6,SFX.wake); at("retrieve",8.4,SFX.whoosh);
-  at("forge",6.2,SFX.slam); at("forge",8.0,SFX.slam); at("forge",9.8,SFX.slam); at("forge",11,SFX.bigslam);
-  at("forge",12.8,SFX.chime);
+  at("retrieve",2,SFX.pop); at("retrieve",5.3,SFX.sad);
+  at("retrieve",8.7,SFX.pop); at("retrieve",9.5,SFX.pop); at("retrieve",10.3,SFX.pop);
+  at("forge",5.2,SFX.slam); at("forge",5.9,SFX.sad); at("forge",9.7,SFX.whoosh);
+  at("forge",10.7,SFX.bigslam); at("forge",12.9,SFX.chime);
   at("wall",2.8,SFX.thunk); at("wall",3.2,SFX.bell);
   at("gate",2.4,SFX.wake); at("gate",8,SFX.bell); at("gate",10.6,SFX.fanfare);
   at("finale",4.2,()=>chord(PADS.finale,4,0.35,"triangle"));
@@ -582,20 +620,45 @@ const BEATS=[];
 let narrOn=true,_voice=null;
 function pickVoice(){ if(_voice||!("speechSynthesis" in window))return _voice;
   const vs=speechSynthesis.getVoices(); if(!vs.length)return null;
-  const en=vs.filter(v=>/^en/i.test(v.lang));
-  _voice = en.find(v=>/natural/i.test(v.name)) || en.find(v=>/Google US English/i.test(v.name)) ||
-           en.find(v=>/Samantha|Daniel|Karen|Moira|Aria|Guy/i.test(v.name)) || en[0] || vs[0];
+  const score=v=>{ if(!/^en/i.test(v.lang))return -1; let sc=0;                 // hunt for the least robotic voice on this device
+    if(/natural|neural|premium|enhanced/i.test(v.name))sc+=8;
+    if(/siri/i.test(v.name))sc+=7;
+    if(/google/i.test(v.name))sc+=6;
+    if(/samantha|ava|allison|zoe|daniel|karen|moira|aria|guy|sonia|libby/i.test(v.name))sc+=5;
+    if(v.localService)sc+=1;
+    return sc; };
+  _voice=vs.slice().sort((x,y)=>score(y)-score(x))[0]||null;
+  if(_voice&&score(_voice)<0)_voice=vs[0];
   return _voice; }
 if("speechSynthesis" in window) speechSynthesis.addEventListener?.("voiceschanged",()=>{_voice=null;pickVoice();});
 function narrCancel(){ try{ if("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){}
   if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.3); }
+function humanize(t){ return t                                   // things TTS reads badly, said the human way
+  .replace(/renderer-mutated-sim-state/g,"renderer mutated sim state")
+  .replace(/offered-not-assigned/g,"offered, not assigned")
+  .replace(/[✦♦★≡→]/g,"")
+  .replace(/…/g,"...")
+  .replace(/\u2014/g,",").replace(/ - /g,", ")
+  .replace(/\b3D\b/g,"three dee")
+  .replace(/\bNEW\b/g,"new").replace(/\bCHOOSE\b/g,"choose").replace(/\bOFFERS\b/g,"offers")
+  .replace(/\bOTHER\b/g,"other").replace(/\bNOT\b/g,"not").replace(/\bOLD\b/g,"old")
+  .replace(/\bMEMORY\b/g,"Memory").replace(/\bIDEAS\b/g,"Ideas").replace(/\bFOR\b/g,"for"); }
 function speak(txt){ if(!narrOn||REDUCE||!("speechSynthesis" in window))return;
   try{ speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(txt.replace(/[✦♦★≡→]/g,"")); const v=pickVoice(); if(v)u.voice=v;
-    u.rate=0.97; u.pitch=1.0; u.volume=1;
-    u.onstart=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.14,AC.currentTime,0.15); };   // duck the score
-    u.onend=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.4); };
-    speechSynthesis.speak(u);
+    const clean=humanize(txt);
+    const parts=(clean.match(/[^.!?]+[.!?]+['"]?/g)||[clean]).map(p=>p.trim()).filter(Boolean);
+    const v=pickVoice();
+    parts.forEach((p,i)=>{                                          // sentence-by-sentence: pauses + varied delivery
+      const u=new SpeechSynthesisUtterance(p);
+      if(v)u.voice=v;
+      const short=p.length<28;
+      u.rate=(short?0.84:0.92)+(i*0.013)%0.04;                      // dramatic lines land slower
+      u.pitch=/\?/.test(p)?1.07:(0.95+(p.length%5)*0.012);          // gentle, deterministic variation
+      u.volume=1;
+      if(i===0) u.onstart=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.14,AC.currentTime,0.15); };
+      if(i===parts.length-1) u.onend=()=>{ if(master&&AC) master.gain.setTargetAtTime(0.45,AC.currentTime,0.4); };
+      speechSynthesis.speak(u);
+    });
   }catch(e){} }
 /* narration = the captions themselves, spoken as each appears */
 const NARR=[];
@@ -611,7 +674,7 @@ function sceneAt(t){ let i=SCENES.length-1; for(let j=0;j<SCENES.length;j++) if(
 function drawFilm(){
   ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   const i=sceneAt(T), sc=SCENES[i], u=T-STARTS[i];
-  apply(); sc.draw(Math.min(u*sc.k,sc.base));            // choreography holds its final pose while text finishes
+  apply(); sc.draw(warpU(sc,Math.min(u,sc.dur)));        // caption-pinned clock; holds final pose while text finishes
   const cap=sc.caps.find(c=>u>=c.s&&u<c.s+c.d);
   if(cap){ const a=fadeIO(u-cap.s,cap.d,0.45,0.6);
     if(cap.card) card(cap.txt,cap.sub,a); else drawCaption(cap.txt,a); }
